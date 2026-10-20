@@ -15,14 +15,6 @@ func _init(seed_value: int = 1) -> void:
 	_rng.seed = seed_value
 
 
-func clear() -> void:
-	_verts.clear()
-	_normals.clear()
-	_colors.clear()
-	_uvs.clear()
-	_indices.clear()
-
-
 func add_mesh(mesh: Mesh, xf: Transform3D, color: Color, jitter: float = 0.0, surface: int = 0) -> void:
 	var arrays: Array = mesh.surface_get_arrays(surface)
 	var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
@@ -58,7 +50,7 @@ func add_raw(verts: PackedVector3Array, normals: PackedVector3Array, indices: Pa
 
 
 static func _basis(rot: Vector3) -> Basis:
-	# same order as the round-1 helpers: y, then x, then z
+	# boxes and tori: y, then x, then z (the round-1 order; only cylinders differ, see cylinder())
 	var b := Basis.IDENTITY
 	if rot.y != 0.0:
 		b = Basis(Vector3.UP, rot.y) * b
@@ -75,6 +67,9 @@ func box(size: Vector3, pos: Vector3, color: Color, jitter: float = 0.0, rot: Ve
 	add_mesh(m, Transform3D(_basis(rot), pos), color, jitter)
 
 
+## Cylinders apply X first, then Z, then Y (like the browser version's cyl()): a handle laid flat with
+## rot.x = PI/2 then points along (sin rot.y, 0, cos rot.y). With Y first, the Y turn would only spin the
+## cylinder about its own axis.
 func cylinder(top_r: float, bottom_r: float, h: float, pos: Vector3, color: Color, jitter: float = 0.0, rot: Vector3 = Vector3.ZERO, segments: int = 14) -> void:
 	var m := CylinderMesh.new()
 	m.top_radius = top_r
@@ -82,7 +77,8 @@ func cylinder(top_r: float, bottom_r: float, h: float, pos: Vector3, color: Colo
 	m.height = h
 	m.radial_segments = segments
 	m.rings = 1
-	add_mesh(m, Transform3D(_basis(rot), pos), color, jitter)
+	var b := Basis(Vector3.UP, rot.y) * Basis(Vector3.BACK, rot.z) * Basis(Vector3.RIGHT, rot.x)
+	add_mesh(m, Transform3D(b, pos), color, jitter)
 
 
 func dome(r: float, pos: Vector3, color: Color, jitter: float = 0.0) -> void:
@@ -102,6 +98,13 @@ func torus(inner: float, outer: float, pos: Vector3, color: Color, rot: Vector3 
 	m.rings = 24
 	m.ring_segments = 6
 	add_mesh(m, Transform3D(_basis(rot), pos), color)
+
+
+## A quad from four corners given clockwise as seen from the front (top-left first), UVs 0..uv_size.
+func quad(a: Vector3, b: Vector3, c: Vector3, d: Vector3, uv_size: Vector2, color: Color = Color.WHITE) -> void:
+	var n: Vector3 = (d - a).cross(b - a).normalized()
+	add_raw(PackedVector3Array([a, b, c, d]), PackedVector3Array([n, n, n, n]), PackedInt32Array([0, 1, 2, 0, 2, 3]), color,
+		PackedVector2Array([Vector2.ZERO, Vector2(uv_size.x, 0), uv_size, Vector2(0, uv_size.y)]))
 
 
 func plane(size: Vector2, pos: Vector3, color: Color, jitter: float = 0.0) -> void:

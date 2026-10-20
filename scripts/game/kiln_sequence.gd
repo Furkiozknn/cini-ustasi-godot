@@ -23,6 +23,7 @@ var _transit_pic: MeshInstance3D
 var _transit_mat: StandardMaterial3D
 var _picture: Texture2D = null
 var _key: String = ""
+var _kiln_focus: Vector3 = Vector3.ZERO
 
 
 func _ready() -> void:
@@ -92,7 +93,8 @@ func _process(delta: float) -> void:
 			if u >= 1.0:
 				board.set_sweep(0.0, 0.0)
 				_next("tokiln")
-				camera_rig.focus = Vector3(mouth.x * 0.55, 0.0, 0.0)
+				# pan to the kiln (fully on phones, softly in landscape)
+				camera_rig.focus = (mouth - camera_rig.target) * 0.95
 				Audio.play("whoosh")
 		"tokiln":
 			var e: float = ease_in_out(u)
@@ -116,9 +118,11 @@ func _process(delta: float) -> void:
 			kiln_glow.scale = Vector3.ONE * (1.6 + sin(t * 30.0) * 0.15)
 			if u >= 1.0:
 				_next("out")
-				camera_rig.focus = Vector3.ZERO
+				_kiln_focus = camera_rig.focus
+				if not camera_rig.is_portrait():
+					camera_rig.focus = Vector3.ZERO
 				_transit.visible = true
-				_transit.position = mouth + Vector3(0, 0, 0.3)
+				_transit.position = _out_start()
 				_transit.scale = Vector3.ONE * 0.3
 				_transit.rotation = Vector3.ZERO
 				_transit_mat.albedo_texture = _picture
@@ -127,17 +131,26 @@ func _process(delta: float) -> void:
 			var e: float = ease_in_out(u)
 			var slot_idx: int = GameState.wall_slot_for(_key)
 			var dest: Vector3 = WorldBuilder.gallery_slot_pos(maxi(slot_idx, 0)) + Vector3(0, 0, 0.03)
-			var start: Vector3 = mouth + Vector3(0, 0, 0.3)
+			var start: Vector3 = _out_start()
 			var dip: float = (u - 0.9) * 8.0 if u > 0.9 else 0.0
+			# on a phone the camera follows the panel from the kiln to its slot on the wall
+			if camera_rig.is_portrait():
+				camera_rig.focus = _kiln_focus.lerp(dest - camera_rig.target, clampf(u * 1.6, 0.0, 1.0))
 			# swing slightly down and towards the camera, then up onto the hook; a high arc would pass
 			# behind the HUD bar at the top of the screen
-			_transit.position = Vector3(lerpf(start.x, dest.x, e), lerpf(start.y, dest.y, e) - sin(u * PI) * 0.35, lerpf(start.z, dest.z + 0.6, e) - dip)
+			# the forward bulge keeps the panel in front of the kiln until it is clear of it
+			_transit.position = Vector3(lerpf(start.x, dest.x, e), lerpf(start.y, dest.y, e) - sin(u * PI) * 0.35, lerpf(start.z, dest.z + 0.6, e) + sin(u * PI) * 1.0 - dip)
 			_transit.scale = Vector3.ONE * lerpf(0.3, 1.0, e)
 			_transit.rotation = Vector3(sin(u * PI) * 0.2, sin(u * PI) * 0.6, 0.0)
 			kiln_light.light_energy = lerpf(3.5, 1.4, e)
 			kiln_glow.scale = Vector3.ONE * lerpf(1.6, 1.0, e)
 			if u >= 1.0:
 				_finish()
+
+
+## Where the fired panel appears: just in front of the kiln mouth (the glow quad sits inside it).
+func _out_start() -> Vector3:
+	return Vector3(WorldBuilder.KILN_MOUTH.x, WorldBuilder.KILN_MOUTH.y, kiln_glow.position.z + 0.45)
 
 
 func _next(p: String) -> void:
@@ -148,6 +161,7 @@ func _next(p: String) -> void:
 func _finish() -> void:
 	active = false
 	phase = ""
+	camera_rig.focus = Vector3.ZERO
 	_transit.visible = false
 	sparks.emitting = false
 	board.set_pulse(true)

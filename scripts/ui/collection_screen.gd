@@ -8,6 +8,7 @@ var _scroll: ScrollContainer
 var _grid: GridContainer
 var _empty: Label
 var _close: IconButton
+var _generation: int = 0
 
 
 func build() -> void:
@@ -21,6 +22,7 @@ func build() -> void:
 	head.add_child(_header)
 	_close = IconButton.new("close")
 	_close.pressed.connect(func() -> void: GameState.close_overlays())
+	primary = _close
 	head.add_child(_close)
 	v.add_child(head)
 	_scroll = ScrollContainer.new()
@@ -55,11 +57,14 @@ func refresh() -> void:
 	var cols: int = maxi(2, int(inner_w / 144.0))
 	_grid.columns = cols
 	var px: float = floorf(minf(112.0, (inner_w - (cols - 1) * 14.0) / cols - 16.0))
+	var jobs: Array = []
 	for e in list:
-		_grid.add_child(_piece(e, px))
+		_grid.add_child(_piece(e, px, jobs))
+	_generation += 1
+	_load_pictures(jobs, _generation)
 
 
-func _piece(e: Dictionary, px: float) -> Control:
+func _piece(e: Dictionary, px: float, jobs: Array) -> Control:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 6)
 	v.alignment = BoxContainer.ALIGNMENT_BEGIN
@@ -77,7 +82,7 @@ func _piece(e: Dictionary, px: float) -> Control:
 	frame.add_child(pic)
 	holder.add_child(frame)
 	v.add_child(holder)
-	_load_picture(pic, e)
+	jobs.append([pic, e])
 	var idx: int = int(e["idx"])
 	var caption: String = ("%s %s" % [Loc.t("dailyName"), str(e["key"]).substr(1)]) if idx == GameState.DAILY else ("%d. %s" % [idx + 1, GameState.level_display_name(idx)])
 	var cap := UiTheme.label(caption, 12, UiTheme.INK, true, HORIZONTAL_ALIGNMENT_CENTER)
@@ -90,12 +95,19 @@ func _piece(e: Dictionary, px: float) -> Control:
 	return v
 
 
-func _load_picture(rect: TextureRect, e: Dictionary) -> void:
-	var pz: Puzzle = GameState.puzzle_for_entry(e)
-	pz.key = str(e["key"])
-	var tex: Texture2D = await baker.bake_board_picture(pz, 128 if Settings.is_low_quality() else 256)
-	if is_instance_valid(rect):
-		rect.texture = tex
+## One picture after another (cached ones appear at once): baking 40 SubViewports in the same frame
+## was a visible hitch in the browser build.
+func _load_pictures(jobs: Array, gen: int) -> void:
+	var px: int = 128 if Settings.is_low_quality() else 256
+	for job in jobs:
+		var rect: TextureRect = job[0]
+		var pz: Puzzle = GameState.puzzle_for_entry(job[1])
+		pz.key = str(job[1]["key"])
+		var tex: Texture2D = await baker.bake_board_picture(pz, px)
+		if gen != _generation:
+			return
+		if is_instance_valid(rect):
+			rect.texture = tex
 
 
 func _layout(vp: Vector2) -> void:

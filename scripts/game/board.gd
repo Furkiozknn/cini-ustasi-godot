@@ -27,6 +27,9 @@ var _shared_mesh: ArrayMesh = null
 var _shared_key: String = ""
 var _side_mat: StandardMaterial3D
 var _generation: int = 0
+## The last level's tile atlas: a restart or replay reuses it, so the tiles never vanish while a new one bakes.
+var _atlas: Dictionary = {}
+var _atlas_key: String = ""
 var _time: float = 0.0
 var _pulse_enabled: bool = true
 
@@ -183,7 +186,8 @@ func clear_tiles() -> void:
 	ready_for_input = false
 
 
-## Bakes the level's atlas and creates the tile nodes. Safe to call again while a bake is pending.
+## Bakes the level's atlas (or reuses it on a restart) and creates the tile nodes. Safe to call again
+## while a bake is pending.
 func build_tiles(with_intro: bool) -> void:
 	_generation += 1
 	var gen: int = _generation
@@ -199,9 +203,14 @@ func build_tiles(with_intro: bool) -> void:
 	if _shared_key != key:
 		_shared_mesh = TileMesh.build(tile_size, tile_h, tile_size * 0.07)
 		_shared_key = key
-	var atlas: Dictionary = await baker.bake_tile_atlas(pz)
-	if gen != _generation or GameState.puzzle != pz:
-		return
+	var atlas_key: String = "%s|%d|%d" % [pz.key, pz.seed_value, baker.cell_px]
+	var atlas: Dictionary = _atlas
+	if atlas_key != _atlas_key:
+		atlas = await baker.bake_tile_atlas(pz)
+		if gen != _generation or GameState.puzzle != pz:
+			return
+		_atlas = atlas
+		_atlas_key = atlas_key
 	var cols: int = atlas["cols"]
 	var rows: int = atlas["rows"]
 	var cells: Dictionary = atlas["cells"]

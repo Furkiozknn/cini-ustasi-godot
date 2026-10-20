@@ -1,11 +1,18 @@
 class_name TextureBaker
 extends Node
 ## Renders Control drawings into textures with throw-away SubViewports: the tile atlas of a level,
-## finished-board pictures and the frame band. In headless mode it returns flat placeholders.
+## finished-board pictures (and the wall gallery atlas composed from them) and the frame band.
+## In headless mode it returns flat placeholders.
+
+## Board pictures kept (least recently used dropped first): the 30 levels plus dailies in the collection and
+## the 12 wall pictures, so opening the collection again never re-bakes everything.
+const PICTURE_CACHE: int = 64
 
 var headless: bool = false
 var cell_px: int = 256
-var _picture_cache: Dictionary = {}
+var _picture_cache: Dictionary = {} # key -> ImageTexture
+var _image_cache: Dictionary = {} # key -> Image (no mipmaps), used to compose the gallery atlas
+var _cache_order: PackedStringArray = []
 var _band: ImageTexture = null
 var _wood: ImageTexture = null
 var _logo: ImageTexture = null
@@ -22,6 +29,15 @@ func _placeholder(color: Color = Color.WHITE) -> ImageTexture:
 
 
 func _capture(vp: SubViewport, mipmaps: bool) -> ImageTexture:
+	var img: Image = await _capture_image(vp)
+	if img == null:
+		return _placeholder()
+	if mipmaps:
+		img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)
+
+
+func _capture_image(vp: SubViewport) -> Image:
 	# Let the controls flush their draw commands first, only then render the target once, then
 	# wait for that render to finish before reading it back.
 	await get_tree().process_frame
@@ -32,12 +48,10 @@ func _capture(vp: SubViewport, mipmaps: bool) -> ImageTexture:
 	vp.queue_free()
 	if img == null or img.is_empty():
 		push_warning("TextureBaker: empty capture")
-		return _placeholder()
+		return null
 	if Args.has("debug"):
 		print("bake %dx%d centre=%s corner=%s" % [img.get_width(), img.get_height(), img.get_pixel(img.get_width() / 2, img.get_height() / 2), img.get_pixel(8, 8)])
-	if mipmaps:
-		img.generate_mipmaps()
-	return ImageTexture.create_from_image(img)
+	return img
 
 
 func _make_viewport(w: int, h: int) -> SubViewport:
@@ -81,21 +95,86 @@ func bake_tile_atlas(pz: Puzzle) -> Dictionary:
 	return {"texture": tex, "cols": cols, "rows": rows, "cells": cells}
 
 
-## Picture of a solved board, cached by progress key and size.
+static func _picture_key(pz: Puzzle, px: int) -> String:
+	return "%s|%d|%d" % [pz.key, pz.seed_value, px]
+
+
+## Marks a picture as just used and drops the least recently used ones beyond PICTURE_CACHE.
+func _touch(key: String) -> void:
+	var i: int = _cache_order.find(key)
+	if i >= 0:
+		_cache_order.remove_at(i)
+	_cache_order.append(key)
+	while _cache_order.size() > PICTURE_CACHE:
+		var old: String = _cache_order[0]
+		_cache_order.remove_at(0)
+		_picture_cache.erase(old)
+		_image_cache.erase(old)
+
+
+## Picture of a solved board as an Image (no mipmaps), cached by progress key and size.
+func bake_board_image(pz: Puzzle, px: int) -> Image:
+	var key := _picture_key(pz, px)
+	if _image_cache.has(key):
+		_touch(key)
+		return _image_cache[key]
+	if headless:
+		var img := Image.create(4, 4, false, Image.FORMAT_RGBA8)
+		img.fill(BoardPicture.BACKGROUND)
+		return img
+	var vp := _make_viewport(px, px)
+	vp.add_child(BoardPicture.new(pz, px))
+	var img: Image = await _capture_image(vp)
+	if img == null:
+		img = Image.create(px, px, false, Image.FORMAT_RGBA8)
+		img.fill(BoardPicture.BACKGROUND)
+	_image_cache[key] = img
+	_touch(key)
+	return img
+
+
+## Picture of a solved board as a mipmapped texture, cached by progress key and size.
 func bake_board_picture(pz: Puzzle, px: int) -> ImageTexture:
-	var key: String = "%s|%d|%d" % [pz.key, pz.seed_value, px]
+	var key := _picture_key(pz, px)
 	if _picture_cache.has(key):
+		_touch(key)
 		return _picture_cache[key]
 	if headless:
 		return _placeholder(BoardPicture.BACKGROUND)
-	var vp := _make_viewport(px, px)
-	var pic := BoardPicture.new(pz, px)
-	vp.add_child(pic)
-	var tex: ImageTexture = await _capture(vp, true)
-	if _picture_cache.size() > 40:
-		_picture_cache.clear()
+	var img: Image = await bake_board_image(pz, px)
+	if _picture_cache.has(key):
+		return _picture_cache[key]
+	var mip: Image = img.duplicate()
+	mip.generate_mipmaps()
+	var tex := ImageTexture.create_from_image(mip)
 	_picture_cache[key] = tex
+	_touch(key)
 	return tex
+
+
+## The wall gallery as one texture: the pictures of `puzzles` in a cols x rows atlas (row-major).
+## Missing pictures are baked one after another; cached ones are only copied (CPU blit).
+func bake_gallery_atlas(puzzles: Array, cols: int, rows: int, px: int) -> ImageTexture:
+	if headless:
+		return _placeholder(BoardPicture.BACKGROUND)
+	var atlas: Image = null
+	for i in puzzles.size():
+		var img: Image = await bake_board_image(puzzles[i], px)
+		if img.get_width() != px or img.get_height() != px:
+			img = img.duplicate()
+			img.resize(px, px)
+		if atlas == null:
+			atlas = Image.create(cols * px, rows * px, false, img.get_format())
+			atlas.fill(BoardPicture.BACKGROUND)
+		elif img.get_format() != atlas.get_format():
+			img = img.duplicate()
+			img.convert(atlas.get_format())
+		@warning_ignore("integer_division")
+		atlas.blit_rect(img, Rect2i(0, 0, px, px), Vector2i((i % cols) * px, (i / cols) * px))
+	if atlas == null:
+		return _placeholder(BoardPicture.BACKGROUND)
+	atlas.generate_mipmaps()
+	return ImageTexture.create_from_image(atlas)
 
 
 func bake_band() -> ImageTexture:

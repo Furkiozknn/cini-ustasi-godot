@@ -34,6 +34,13 @@ func _ready() -> void:
 	_run("game_state_undo_and_hint", test_game_state_undo_hint)
 	_run("game_state_text_is_json", test_state_text)
 	_run("synth_produces_audio", test_synth)
+	_run("home_plan_solves_every_level", test_home_plan_all_levels)
+	_run("hint_uses_home_solution_and_undo_returns_it", test_hint_home_and_undo)
+	_run("edge_total_matches_solved_board", test_edge_total)
+	_run("record_flag_and_replay_returns_to_wall", test_record_and_wall)
+	_run("toast_kinds", test_toast_kinds)
+	_run("cylinder_points_along_its_yaw", test_cylinder_axis)
+	_run("generated_models_fit", test_model_fit)
 	var total: int = _passed + _failed
 	print("Tests took %d ms" % (Time.get_ticks_msec() - t0))
 	if _failed == 0:
@@ -414,6 +421,7 @@ func test_game_state_undo_hint() -> void:
 	check(GameState.move_count() >= 1, "hint moves count toward the total")
 	GameState.undo()
 	check_eq(GameState.move_count(), 0, "hint undone")
+	check_eq(GameState.hints, 3, "undoing a hint gives it back")
 	GameState.restart_level()
 	check_eq(GameState.hints, 3, "restart refills hints")
 	for p in pz.slot_count():
@@ -459,3 +467,157 @@ func test_synth() -> void:
 	var p := Synth.new(1.0, 7)
 	p.pluck(293.66, 0.0, 0.5, 0.9)
 	check(absf(p.data[int(0.02 * Synth.RATE)]) > 0.0, "pluck produces signal")
+
+
+func _solve_live() -> void:
+	for m in PuzzleCore.plan_moves(GameState.puzzle, GameState.slots, GameState.puzzle.solution()):
+		GameState.perform_move(m)
+
+
+func test_home_plan_all_levels() -> void:
+	# the bot and the hints plan against the generated solution: it must reach a solved board everywhere
+	var defs: Array = []
+	for i in 30:
+		defs.append([GameState.level_set.level(i), PuzzleCore.level_seed(i), "level %d" % (i + 1)])
+	for day in ["2026-10-20", "2026-10-21", "2027-02-28"]:
+		defs.append([GameState.level_set.daily, PuzzleCore.daily_seed(day), "daily " + day])
+	for d in defs:
+		var pz := PuzzleCore.generate_level(d[0], d[1])
+		var slots := SlotState.clone_list(pz.start)
+		var plan := PuzzleCore.plan_moves(pz, slots, pz.solution())
+		check_eq(plan.size(), pz.par, "%s plan length is par" % d[2])
+		for m in plan:
+			PuzzleCore.apply_primitive(slots, m, false)
+		check(PuzzleCore.is_solved(pz, slots), "%s home plan solves it" % d[2])
+		for td in pz.tiles:
+			if td.fixed:
+				check(pz.start[td.home].t == td.id, "%s fixed tile starts at home" % d[2])
+
+
+func test_hint_home_and_undo() -> void:
+	GameState.progress = GameState._empty_progress()
+	GameState.start_level(29, false) # 6x6 with fixed and two-sided tiles: the old solver hint was slow here
+	GameState.dismiss_howto()
+	var t0: int = Time.get_ticks_msec()
+	GameState.use_hint()
+	var ms: int = Time.get_ticks_msec() - t0
+	check(ms < 50, "hint on a 6x6 board is instant (%d ms)" % ms)
+	check_eq(GameState.hints, 2, "hint used")
+	var sol: Array[SlotState] = GameState.puzzle.solution()
+	var first_wrong: int = -1
+	for p in GameState.puzzle.start.size():
+		if not GameState.puzzle.start[p].equals(sol[p]):
+			first_wrong = p
+			break
+	check(GameState.slots[first_wrong].equals(sol[first_wrong]), "the hint fixed the first wrong slot")
+	GameState.undo()
+	check_eq(GameState.hints, 3, "undo gives the hint back")
+	for p in GameState.slots.size():
+		check(GameState.slots[p].equals(GameState.puzzle.start[p]), "undo restored slot %d" % p)
+	# three hints, three undos: all three hints are back, never more
+	for i in 3:
+		GameState.use_hint()
+	check_eq(GameState.hints, 0, "all hints used")
+	for i in 3:
+		GameState.undo()
+	check_eq(GameState.hints, 3, "all hints back")
+	GameState.show_title()
+	GameState.puzzle = null
+	GameState.progress = GameState._empty_progress()
+
+
+func test_edge_total() -> void:
+	for i in [0, 10, 25, 29]:
+		var pz := PuzzleCore.generate_level(GameState.level_set.level(i), PuzzleCore.level_seed(i))
+		check_eq(PuzzleCore.evaluate(pz, pz.solution()).count(), PuzzleCore.edge_total(pz.n), "level %d edge total" % (i + 1))
+
+
+func test_record_and_wall() -> void:
+	GameState.progress = GameState._empty_progress()
+	# L1 is the oldest of 13 pieces, so it is not on the 12-piece wall
+	GameState.progress["collection"].append({"key": "L1", "idx": 0, "seed": PuzzleCore.level_seed(0), "stars": 1, "ts": 1})
+	for i in range(1, 13):
+		GameState.progress["collection"].append({"key": "L%d" % (i + 1), "idx": i, "seed": PuzzleCore.level_seed(i), "stars": 2, "ts": 100 + i})
+	check(not GameState._on_wall("L1"), "L1 starts off the wall")
+	GameState.start_level(0, false)
+	GameState.dismiss_howto()
+	# a first, wasteful solve: four extra turns of one tile
+	for i in 4:
+		GameState.perform_move(Move.rot(0))
+	_solve_live()
+	check_eq(String(GameState.screen), "completing", "solved")
+	check(not bool(GameState.result["record"]), "no record badge on the first result")
+	check(GameState._on_wall("L1"), "the replayed piece goes back up on the wall")
+	check_eq(GameState.wall_entries()[-1]["key"], "L1", "as the newest piece")
+	GameState.show_complete()
+	GameState.replay_level()
+	GameState.dismiss_howto()
+	_solve_live()
+	check(bool(GameState.result["record"]), "a better result shows the record badge")
+	check_eq(int(GameState.result["moves"]), GameState.puzzle.par, "par result")
+	GameState.show_complete()
+	GameState.back()
+	check_eq(String(GameState.screen), "title", "Esc on the complete card goes to the title")
+	GameState.puzzle = null
+	GameState.progress = GameState._empty_progress()
+
+
+func test_toast_kinds() -> void:
+	var got: Array = []
+	var cb := func(msg: String, kind: String) -> void: got.append([msg, kind])
+	GameState.toast.connect(cb)
+	GameState.progress = GameState._empty_progress()
+	GameState.start_level(25, false)
+	GameState.dismiss_howto()
+	var fixed_slot: int = -1
+	for s in GameState.puzzle.slot_count():
+		if GameState.tile_at_slot(s).fixed:
+			fixed_slot = s
+			break
+	GameState.try_rotate(fixed_slot)
+	GameState.use_hint()
+	GameState.hints = 0
+	GameState.use_hint()
+	GameState.restart_level()
+	GameState.toast.disconnect(cb)
+	var kinds: Array = got.map(func(e: Array) -> String: return e[1])
+	check_eq(kinds, ["bad", "good", "bad", ""], "fixed tile bad, hint good, no hints bad, restart info")
+	check_eq(got[-1][0], Loc.t("restarted"), "restart toast text")
+	GameState.show_title()
+	GameState.puzzle = null
+	GameState.progress = GameState._empty_progress()
+
+
+func test_cylinder_axis() -> void:
+	# a brush handle laid flat (rot.x = PI/2) and turned by a must point along (sin a, 0, cos a)
+	var a: float = 0.6
+	var mb := MeshBuilder.new(1)
+	mb.cylinder(0.02, 0.02, 1.0, Vector3.ZERO, Color.WHITE, 0.0, Vector3(PI / 2, a, 0), 8)
+	var verts: PackedVector3Array = mb.commit().surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var axis := Vector3(sin(a), 0, cos(a))
+	var best: float = 0.0
+	var max_y: float = 0.0
+	for v in verts:
+		best = maxf(best, v.dot(axis))
+		max_y = maxf(max_y, absf(v.y))
+	check(absf(best - 0.5) < 0.03, "handle end lies on the yaw axis (%f)" % best)
+	check(max_y < 0.03, "handle lies flat (%f)" % max_y)
+
+
+func test_model_fit() -> void:
+	var kiln := WorldBuilder.asset_model(WorldBuilder.KILN_FIT)
+	check(kiln != null, "kiln model loads")
+	if kiln != null:
+		var size: Vector3 = kiln.get_meta("size")
+		check(absf(size.z - 2.4) < 0.01, "kiln depth 2.4 m (%s)" % size)
+		check(absf(size.x - 2.16) < 0.05 and absf(size.y - 2.09) < 0.05, "kiln about 2.16 x 2.09 m (%s)" % size)
+		check(kiln.position.is_equal_approx(Vector3(4.55, 0, -2.95)), "kiln base centre")
+		kiln.free()
+	var cat := WorldBuilder.asset_model(WorldBuilder.CAT_FIT)
+	check(cat != null and absf((cat.get_meta("size") as Vector3).y - 0.46) < 0.01, "cat is 0.46 m tall")
+	if cat != null:
+		cat.free()
+	var paint := WorldBuilder.asset_model(WorldBuilder.PAINT_FIT)
+	check(paint != null and absf((paint.get_meta("size") as Vector3).z - 0.6) < 0.01, "paint set is 0.6 m deep")
+	if paint != null:
+		paint.free()

@@ -35,6 +35,8 @@ func _ready() -> void:
 	toasts = Toasts.new()
 	toasts.name = "Toasts"
 	_root.add_child(toasts)
+	hud.resized.connect(_place_toasts)
+	hud.visibility_changed.connect(_place_toasts)
 	GameState.screen_changed.connect(_on_screen_changed)
 	GameState.toast.connect(toasts.show_toast)
 	GameState.board_changed.connect(func(_u: bool, _n: int) -> void: hud.update_stats())
@@ -47,12 +49,25 @@ func _ready() -> void:
 	_bake_logo()
 
 
-## The logo tile is drawn once into a texture instead of as ~60 vector commands every frame
-## (that was most of the title screen's draw calls).
+## The generated crest on the title card and in the HUD. Without it (`--noassets`) the logo tile is
+## drawn once into a texture instead of as ~60 vector commands every frame.
 func _bake_logo() -> void:
-	var tex: Texture2D = await baker.bake_logo()
-	hud.logo.texture = tex
-	screens[GameState.SCREEN_TITLE].logo.texture = tex
+	var big: Texture2D = WorldBuilder.asset_texture("ui/crest-256.webp")
+	var small: Texture2D = WorldBuilder.asset_texture("ui/crest-64.png")
+	if big == null or small == null:
+		big = await baker.bake_logo()
+		small = big
+	hud.logo.texture = small
+	screens[GameState.SCREEN_TITLE].logo.texture = big
+
+
+func _input(event: InputEvent) -> void:
+	UiScreen.note_input(event)
+
+
+## The toast stack sits just under the HUD while it is shown, else near the top of the screen.
+func _place_toasts() -> void:
+	toasts.set_top(hud.position.y + hud.size.y + 8.0 if hud.visible else 16.0)
 
 
 func _exit_tree() -> void:

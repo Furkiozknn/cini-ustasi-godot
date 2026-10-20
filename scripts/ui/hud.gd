@@ -1,12 +1,18 @@
 class_name Hud
 extends PanelContainer
-## Top bar while playing: logo, level name, moves / par / stars and the action buttons.
+## Top bar while playing: crest, level name, moves / par / matched edges / stars and the action buttons
+## (hint, undo, restart, help, sound, settings, language, pause). On narrow screens the stats move to a
+## second row and help / settings stay in the pause menu.
+
+const TWO_ROWS_BELOW: float = 1180.0
 
 var _name_label: Label
 var _level_name: Label
 var _level_sub: Label
 var _moves: VBoxContainer
 var _par: VBoxContainer
+var _edges: VBoxContainer
+var _level_box: VBoxContainer
 var _stars: StarRow
 var _stars_box: VBoxContainer
 var _mid: HBoxContainer
@@ -17,10 +23,13 @@ var _undo: IconButton
 var _restart: IconButton
 var _help: IconButton
 var _settings: IconButton
+var _sound: IconButton
 var _lang: Button
 var _menu: IconButton
 var _narrow: bool = false
-## The logo tile as one baked texture (filled in by Ui once the baker is done).
+var _two_rows: bool = false
+var _spacer: Control
+## The crest (generated) or the baked logo tile (filled in by Ui).
 var logo: TextureRect
 
 
@@ -66,11 +75,14 @@ func _ready() -> void:
 	_level_name = UiTheme.label("—", 15, UiTheme.INK, true)
 	_level_name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_level_sub = UiTheme.label("", 12, UiTheme.INK_SOFT)
+	lv.custom_minimum_size = Vector2(70, 0)
+	_level_box = lv
 	lv.add_child(_level_name)
 	lv.add_child(_level_sub)
 	_mid.add_child(lv)
 	_moves = UiTheme.stat("0", "")
 	_par = UiTheme.stat("0", "")
+	_edges = UiTheme.stat("0/0", "")
 	_stars_box = VBoxContainer.new()
 	_stars_box.add_theme_constant_override("separation", 0)
 	_stars_box.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -84,6 +96,7 @@ func _ready() -> void:
 	_stars_box.add_child(cap)
 	_mid.add_child(_moves)
 	_mid.add_child(_par)
+	_mid.add_child(_edges)
 	_mid.add_child(_stars_box)
 	_row1.add_child(_mid)
 	# right buttons
@@ -105,40 +118,61 @@ func _ready() -> void:
 	_settings.pressed.connect(func() -> void:
 		if GameState.screen == GameState.SCREEN_PLAYING:
 			GameState.show_settings())
-	_lang = UiTheme.button("EN", "IconButton", 40)
-	_lang.custom_minimum_size = Vector2(40, 40)
+	_sound = IconButton.new("sound")
+	_sound.pressed.connect(func() -> void: Settings.toggle_sfx())
+	_lang = UiTheme.button("EN", "IconButton", UiTheme.MIN_TOUCH)
+	_lang.custom_minimum_size = Vector2(UiTheme.MIN_TOUCH, UiTheme.MIN_TOUCH)
 	_lang.pressed.connect(func() -> void: Settings.toggle_language())
 	_menu = IconButton.new("menu")
 	_menu.pressed.connect(func() -> void: GameState.show_menu())
-	for b in [_hint, _undo, _restart, _help, _settings, _lang, _menu]:
+	for b in [_hint, _undo, _restart, _help, _sound, _settings, _lang, _menu]:
 		right.add_child(b)
+	_spacer = Control.new()
+	_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_spacer.visible = false
+	_row1.add_child(_spacer)
 	_row1.add_child(right)
 	get_viewport().size_changed.connect(_on_resize)
+	Settings.changed.connect(_sync_sound)
 	_on_resize()
 	refresh()
 
 
 func _on_resize() -> void:
-	var narrow: bool = get_viewport().get_visible_rect().size.x < 640.0
-	if narrow == _narrow and _mid.get_parent() != null:
+	var w: float = get_viewport().get_visible_rect().size.x
+	# one row needs about 1150 px (name, four stats and eight 44 px buttons); below that the stats move to a
+	# second row, and on a phone help and settings stay in the pause menu
+	var two_rows: bool = w < TWO_ROWS_BELOW
+	var narrow: bool = w < 640.0
+	if narrow == _narrow and two_rows == _two_rows and _mid.get_parent() != null:
 		return
 	_narrow = narrow
+	_two_rows = two_rows
 	_name_label.visible = not narrow
+	_help.visible = not narrow
+	_settings.visible = not narrow
+	# on a phone both level lines may shrink with an ellipsis, so the four stats still fit in 390 px;
+	# on wider screens the sub line keeps the box as wide as its text
+	_level_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL if narrow else Control.SIZE_FILL
+	_level_sub.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS if narrow else TextServer.OVERRUN_NO_TRIMMING
 	if _mid.get_parent() != null:
 		_mid.get_parent().remove_child(_mid)
-	if narrow:
+	if two_rows:
 		_row2.add_child(_mid)
 		_row2.visible = true
 	else:
 		_row1.add_child(_mid)
 		_row1.move_child(_mid, 1)
 		_row2.visible = false
+	# the buttons stay on the right edge of the first row
+	_spacer.visible = two_rows
 
 
 func refresh() -> void:
 	_moves.get_node("Caption").text = Loc.t("moves").to_upper()
 	_par.get_node("Caption").text = Loc.t("par").to_upper()
 	_stars_box.get_node("Caption").text = Loc.t("stars").to_upper()
+	_edges.get_node("Caption").text = Loc.t("edges").to_upper()
 	_lang.text = Loc.other_language().to_upper()
 	_hint.tooltip_text = Loc.t("hintTip")
 	_undo.tooltip_text = Loc.t("undoTip")
@@ -146,7 +180,15 @@ func refresh() -> void:
 	_help.tooltip_text = Loc.t("howToPlay")
 	_settings.tooltip_text = Loc.t("settings")
 	_menu.tooltip_text = Loc.t("menuTip")
+	_sound.tooltip_text = Loc.t("soundTip")
+	_lang.tooltip_text = Loc.t("langTip")
+	_sync_sound()
 	update_stats()
+
+
+func _sync_sound() -> void:
+	_sound.slashed = not Settings.sfx_on
+	_sound.queue_redraw()
 
 
 func update_stats() -> void:
@@ -160,6 +202,7 @@ func update_stats() -> void:
 		_level_sub.text = "%s %d · %s %d · %d×%d" % [Loc.t("chapter"), GameState.chapter_of(idx) + 1, Loc.t("level"), idx + 1, GameState.puzzle.n, GameState.puzzle.n]
 	_moves.get_node("Value").text = str(GameState.move_count())
 	_par.get_node("Value").text = str(GameState.puzzle.par)
+	_edges.get_node("Value").text = "%d/%d" % [GameState.matched_count, PuzzleCore.edge_total(GameState.puzzle.n)]
 	_stars.set_filled(GameState.live_stars())
 	_hint.set_badge(GameState.hints)
 	_hint.slashed = GameState.hints <= 0

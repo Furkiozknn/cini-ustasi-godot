@@ -1,6 +1,7 @@
 class_name Solver
 extends RefCounted
-## Backtracking solver over the live board state. Used for hints, for the autoplay bot and by the tests.
+## Backtracking solver over the live board state. Only the tests use it (they prove every level can be solved);
+## hints and the bot plan against the known home solution instead, which is O(N).
 ## Candidate order keeps the tile already in a slot (and its current orientation) first, so hints stay
 ## close to what the player has done.
 

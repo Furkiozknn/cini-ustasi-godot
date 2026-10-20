@@ -7,7 +7,8 @@ signal level_started(with_intro: bool)
 signal primitive_applied(move: Move, inverse: bool)
 signal board_changed(is_undo: bool, newly_matched: int)
 signal puzzle_solved(result: Dictionary)
-signal toast(msg: String)
+## kind: "" (info), "good" or "bad"; the toast stack colours its edge accordingly.
+signal toast(msg: String, kind: String)
 signal progress_changed
 signal hint_sparkle(slot: int)
 signal tile_denied(slot: int)
@@ -104,14 +105,14 @@ static func merge_progress(base: Dictionary, loaded: Dictionary) -> Dictionary:
 	return out
 
 
+## Writes the progress (not with `--no-save`) and tells the UI it changed (always, once).
 func save_progress() -> void:
-	if no_save:
-		return
-	var f := FileAccess.open(PROGRESS_PATH, FileAccess.WRITE)
-	if f == null:
-		push_warning("Could not write progress to %s" % PROGRESS_PATH)
-		return
-	f.store_string(JSON.stringify(progress))
+	if not no_save:
+		var f := FileAccess.open(PROGRESS_PATH, FileAccess.WRITE)
+		if f == null:
+			push_warning("Could not write progress to %s" % PROGRESS_PATH)
+		else:
+			f.store_string(JSON.stringify(progress))
 	progress_changed.emit()
 
 
@@ -194,6 +195,13 @@ func wall_entries() -> Array:
 	if list.size() > MAX_WALL:
 		list = list.slice(list.size() - MAX_WALL)
 	return list
+
+
+func _on_wall(key: String) -> bool:
+	for e in wall_entries():
+		if e["key"] == key:
+			return true
+	return false
 
 
 func wall_slot_for(key: String) -> int:
@@ -285,6 +293,8 @@ func back() -> void:
 				close_overlays()
 		SCREEN_LEVELS, SCREEN_COLLECTION, SCREEN_HOWTO:
 			close_overlays()
+		SCREEN_COMPLETE:
+			show_title()
 
 
 # ---------------------------------------------------------------- level flow
@@ -322,7 +332,7 @@ func restart_level() -> void:
 	hints = HINTS_PER_LEVEL
 	matched_count = PuzzleCore.evaluate(puzzle, slots).count()
 	level_started.emit(true)
-	toast.emit(Loc.t("restarted"))
+	toast.emit(Loc.t("restarted"), "")
 
 
 func next_level() -> void:
@@ -381,11 +391,14 @@ func undo() -> void:
 	if screen != SCREEN_PLAYING:
 		return
 	if history.is_empty():
-		toast.emit(Loc.t("nothingToUndo"))
+		toast.emit(Loc.t("nothingToUndo"), "")
 		return
 	var m: Move = history.pop_back()
 	_apply(m, true)
-	toast.emit(Loc.t("undone"))
+	# undoing a hint gives the hint back
+	if m.type == Move.Type.HINT:
+		hints = mini(hints + 1, HINTS_PER_LEVEL)
+	toast.emit(Loc.t("undone"), "")
 	_after_change(true)
 
 
@@ -402,7 +415,7 @@ func try_rotate(slot: int) -> void:
 	if screen != SCREEN_PLAYING:
 		return
 	if tile_at_slot(slot).fixed:
-		toast.emit(Loc.t("fixedTile"))
+		toast.emit(Loc.t("fixedTile"), "bad")
 		tile_denied.emit(slot)
 		return
 	perform_move(Move.rot(slot))
@@ -413,11 +426,11 @@ func try_flip(slot: int) -> void:
 		return
 	var td := tile_at_slot(slot)
 	if td.fixed:
-		toast.emit(Loc.t("fixedTile"))
+		toast.emit(Loc.t("fixedTile"), "bad")
 		tile_denied.emit(slot)
 		return
 	if not td.is_two_sided():
-		toast.emit(Loc.t("notTwoSided"))
+		toast.emit(Loc.t("notTwoSided"), "bad")
 		tile_denied.emit(slot)
 		return
 	perform_move(Move.flip(slot))
@@ -427,14 +440,14 @@ func try_swap(a: int, b: int) -> void:
 	if screen != SCREEN_PLAYING or a == b:
 		return
 	if not puzzle.allow_swap:
-		toast.emit(Loc.t("noSwapHere"))
+		toast.emit(Loc.t("noSwapHere"), "")
 		return
 	if tile_at_slot(a).fixed:
-		toast.emit(Loc.t("fixedTile"))
+		toast.emit(Loc.t("fixedTile"), "bad")
 		tile_denied.emit(a)
 		return
 	if tile_at_slot(b).fixed:
-		toast.emit(Loc.t("fixedTile"))
+		toast.emit(Loc.t("fixedTile"), "bad")
 		tile_denied.emit(b)
 		return
 	perform_move(Move.swap(a, b))
@@ -444,23 +457,19 @@ func use_hint() -> void:
 	if screen != SCREEN_PLAYING:
 		return
 	if hints <= 0:
-		toast.emit(Loc.t("noHints"))
+		toast.emit(Loc.t("noHints"), "bad")
 		tile_denied.emit(-1)
 		return
-	var solver := Solver.new()
-	var sol := solver.solve(puzzle, slots)
-	if sol.is_empty():
-		toast.emit(Loc.t("hintNone"))
-		return
-	var moves := PuzzleCore.plan_hint(puzzle, slots, sol)
+	# Plan against the generated (home) solution: O(N), no search, always valid because fixed tiles
+	# never leave home. The backtracking solver is only used by the tests.
+	var moves := PuzzleCore.plan_hint(puzzle, slots, puzzle.solution())
 	if moves.is_empty():
-		toast.emit(Loc.t("hintNone"))
 		return
 	var p: int = moves[0].p if moves[0].type != Move.Type.SWAP else moves[0].a
 	hints -= 1
 	perform_move(Move.hint(moves))
 	hint_sparkle.emit(p)
-	toast.emit(Loc.t("hintUsed"))
+	toast.emit(Loc.t("hintUsed"), "good")
 
 
 # ---------------------------------------------------------------- completion
@@ -482,9 +491,12 @@ func _on_solved() -> void:
 	else:
 		entry["stars"] = maxi(int(entry["stars"]), stars)
 		new_piece = false
+		# a replayed panel that is no longer among the last MAX_WALL goes back up as the newest one
+		if not _on_wall(key):
+			entry["ts"] = int(Time.get_unix_time_from_system())
 	save_progress()
-	progress_changed.emit()
-	result = {"moves": moves, "par": par, "stars": stars, "best": best_for(key), "key": key, "new_piece": new_piece}
+	result = {"moves": moves, "par": par, "stars": stars, "best": best_for(key), "key": key, "new_piece": new_piece,
+		"record": improved and not prev.is_empty()}
 	if level_index == 9 and daily_unlocked() and not progress["daily_toast_shown"]:
 		pending_daily = true
 	puzzle_solved.emit(result)
@@ -495,12 +507,12 @@ func show_complete() -> void:
 	_return_screen = SCREEN_COMPLETE
 	set_screen(SCREEN_COMPLETE)
 	if level_index == PuzzleCore.LEVEL_COUNT - 1 and completed_count() == PuzzleCore.LEVEL_COUNT:
-		toast.emit(Loc.t("allDone"))
+		toast.emit(Loc.t("allDone"), "good")
 	if pending_daily:
 		pending_daily = false
 		progress["daily_toast_shown"] = true
 		save_progress()
-		toast.emit(Loc.t("dailyUnlocked"))
+		toast.emit(Loc.t("dailyUnlocked"), "good")
 
 
 func has_next_level() -> bool:

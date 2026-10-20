@@ -7,7 +7,28 @@ var center: CenterContainer
 var card: PanelContainer
 var card_max_width: float = 520.0
 var clear_backdrop: bool = false
+## The button that takes the keyboard focus when the card opens (Enter / Space presses it).
+var primary: Control = null
 var _tween: Tween = null
+
+## True after a key or gamepad press, false after a mouse click or touch: decides whether the focus
+## ring shows when a card opens (pointer users get the focus without the ring).
+static var keyboard_mode: bool = false
+
+
+static func note_input(event: InputEvent) -> void:
+	if event is InputEventKey or event is InputEventJoypadButton:
+		if event.is_pressed():
+			keyboard_mode = true
+	elif event is InputEventMouseButton or event is InputEventScreenTouch:
+		if event.is_pressed():
+			keyboard_mode = false
+
+
+## Gives `c` the focus; the ring only shows for keyboard / gamepad users.
+static func focus(c: Control) -> void:
+	if c != null and c.is_visible_in_tree() and c.focus_mode != Control.FOCUS_NONE:
+		c.grab_focus(not keyboard_mode)
 
 
 func _init() -> void:
@@ -76,10 +97,18 @@ func show_screen() -> void:
 		return
 	card.pivot_offset = card.size / 2.0
 	card.scale = Vector2(0.94, 0.94)
+	focus_primary()
 	_tween = create_tween()
 	_tween.set_parallel(true)
 	_tween.tween_property(self, "modulate:a", 1.0, 0.26).set_trans(Tween.TRANS_SINE)
 	_tween.tween_property(card, "scale", Vector2.ONE, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+func focus_primary() -> void:
+	var c: Control = primary
+	if c == null or not c.is_visible_in_tree() or (c is BaseButton and (c as BaseButton).disabled):
+		c = card.find_next_valid_focus()
+	focus(c)
 
 
 func hide_screen() -> void:

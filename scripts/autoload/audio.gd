@@ -89,9 +89,9 @@ func _apply_volumes() -> void:
 	AudioServer.set_bus_volume_db(_master_idx, linear_to_db(maxf(Settings.master_volume, 0.0001)))
 	AudioServer.set_bus_mute(_master_idx, Settings.master_volume <= 0.001)
 	AudioServer.set_bus_volume_db(_music_idx, linear_to_db(maxf(Settings.music_volume, 0.0001)))
-	AudioServer.set_bus_mute(_music_idx, Settings.music_volume <= 0.001)
+	AudioServer.set_bus_mute(_music_idx, Settings.music_volume <= 0.001 or not Settings.music_on)
 	AudioServer.set_bus_volume_db(_sfx_idx, linear_to_db(maxf(Settings.sfx_volume, 0.0001)))
-	AudioServer.set_bus_mute(_sfx_idx, Settings.sfx_volume <= 0.001)
+	AudioServer.set_bus_mute(_sfx_idx, Settings.sfx_volume <= 0.001 or not Settings.sfx_on)
 
 
 # ---------------------------------------------------------------- generation
@@ -248,7 +248,7 @@ func _play_note(stream: AudioStreamWAV, vel: float) -> void:
 func _update_music(delta: float) -> void:
 	if _headless or not _music_ready:
 		return
-	if Settings.music_volume <= 0.001:
+	if Settings.music_volume <= 0.001 or not Settings.music_on:
 		return
 	if not _music_started:
 		_music_started = true

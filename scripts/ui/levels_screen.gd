@@ -43,6 +43,9 @@ func refresh() -> void:
 	var gap: int = 7 if narrow else 10
 	var cell: float = floorf((inner_w - (cols - 1) * gap) / cols)
 	var set: LevelSet = GameState.level_set
+	primary = _close
+	# the keyboard starts on the current level (or the next one to play)
+	var focus_idx: int = GameState.level_index if GameState.puzzle != null and GameState.level_index >= 0 else GameState.next_unfinished()
 	for ch in set.chapters.size():
 		var chapter: ChapterDef = set.chapters[ch]
 		var sec := VBoxContainer.new()
@@ -59,7 +62,10 @@ func refresh() -> void:
 		grid.add_theme_constant_override("v_separation", gap)
 		var first: int = set.first_index_of_chapter(ch)
 		for i in chapter.levels.size():
-			grid.add_child(_level_card(first + i, cell, narrow))
+			var card_btn := _level_card(first + i, cell, narrow)
+			if first + i == focus_idx and not card_btn.disabled:
+				primary = card_btn
+			grid.add_child(card_btn)
 		sec.add_child(grid)
 		if ch == 0:
 			sec.add_child(UiTheme.spacer(2))
@@ -71,7 +77,7 @@ func _level_card(idx: int, cell: float, narrow: bool) -> Button:
 	var b := Button.new()
 	b.theme_type_variation = &"LevelCard"
 	b.custom_minimum_size = Vector2(cell, cell)
-	b.focus_mode = Control.FOCUS_NONE
+	b.focus_mode = Control.FOCUS_ALL
 	var unlocked: bool = GameState.is_unlocked(idx)
 	var best: Dictionary = GameState.best_for("L%d" % (idx + 1))
 	b.disabled = not unlocked
@@ -124,7 +130,7 @@ func _daily_card(cell: float) -> Button:
 	var unlocked: bool = GameState.daily_unlocked()
 	b.custom_minimum_size = Vector2(cell * 2.0 + 10.0, maxf(cell, 78.0))
 	b.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	b.focus_mode = Control.FOCUS_NONE
+	b.focus_mode = Control.FOCUS_ALL
 	b.disabled = not unlocked
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color("#cdeeea") if unlocked else Color("#d7f3f1")

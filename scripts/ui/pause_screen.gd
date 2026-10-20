@@ -1,6 +1,6 @@
 class_name PauseScreen
 extends UiScreen
-## Pause menu ("Mola").
+## Pause menu ("Mola"), in the shared order: Resume; Restart, Settings; Levels, Collection; Title screen.
 
 var _title: Label
 var _resume: Button
@@ -22,6 +22,7 @@ func build() -> void:
 	var r0 := UiTheme.row()
 	_resume = UiTheme.button("", "")
 	_resume.pressed.connect(func() -> void: GameState.close_overlays())
+	primary = _resume
 	r0.add_child(_resume)
 	v.add_child(r0)
 	var r1 := UiTheme.row()
@@ -31,21 +32,21 @@ func build() -> void:
 		GameState.restart_level())
 	_levels = UiTheme.button("", "AltButton")
 	_levels.pressed.connect(func() -> void: GameState.show_levels())
+	_settings = UiTheme.button("", "AltButton")
+	_settings.pressed.connect(func() -> void: GameState.show_settings())
 	r1.add_child(_restart)
-	r1.add_child(_levels)
+	r1.add_child(_settings)
 	v.add_child(r1)
 	var r2 := UiTheme.row()
 	_collection = UiTheme.button("", "AltButton")
 	_collection.pressed.connect(func() -> void: GameState.show_collection())
-	_home = UiTheme.button("", "AltButton")
-	_home.pressed.connect(func() -> void: GameState.show_title())
+	r2.add_child(_levels)
 	r2.add_child(_collection)
-	r2.add_child(_home)
 	v.add_child(r2)
 	var r3 := UiTheme.row()
-	_settings = UiTheme.button("", "AltButton")
-	_settings.pressed.connect(func() -> void: GameState.show_settings())
-	r3.add_child(_settings)
+	_home = UiTheme.button("", "AltButton")
+	_home.pressed.connect(func() -> void: GameState.show_title())
+	r3.add_child(_home)
 	v.add_child(r3)
 
 

@@ -21,6 +21,7 @@ func build() -> void:
 	var row := UiTheme.row()
 	_ok = UiTheme.button("", "")
 	_ok.pressed.connect(func() -> void: GameState.dismiss_howto())
+	primary = _ok
 	row.add_child(_ok)
 	v.add_child(row)
 

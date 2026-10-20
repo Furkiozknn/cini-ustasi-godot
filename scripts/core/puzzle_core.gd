@@ -104,8 +104,10 @@ static func generate_level(def: LevelDef, seed_value: int) -> Puzzle:
 		if ok:
 			tiles = t
 			break
-		if attempt == 399:
-			tiles = t
+	# never seen for the 30 levels; a seed that fails every attempt moves on to the next seed instead of
+	# a partial board (same rule as the browser version, so both engines still generate the same boards)
+	if tiles.is_empty():
+		return generate_level(def, (seed_value + 1) & 0xFFFFFFFF)
 	var pz := Puzzle.new()
 	pz.n = n
 	pz.tiles = tiles
@@ -228,6 +230,11 @@ static func evaluate(pz: Puzzle, slots: Array[SlotState]) -> EvalResult:
 					all = false
 	res.solved = all
 	return res
+
+
+## Edges evaluate() reports on a solved n x n board: every top and left edge plus the right and bottom border.
+static func edge_total(n: int) -> int:
+	return 2 * n * n + 2 * n
 
 
 static func is_solved(pz: Puzzle, slots: Array[SlotState]) -> bool:

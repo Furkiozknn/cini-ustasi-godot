@@ -1,14 +1,17 @@
 extends Node
-## Player settings (volumes, language, quality, fullscreen) saved in user://settings.cfg.
+## Player settings (volumes, music / sound toggles, language, quality, fullscreen) saved in user://settings.cfg.
 ## With `--no-save` nothing is read from or written to disk.
 
 signal changed
 
 const PATH: String = "user://settings.cfg"
 
-var master_volume: float = 1.0
-var music_volume: float = 0.8
-var sfx_volume: float = 1.0
+var master_volume: float = 0.8
+var music_volume: float = 0.6
+var sfx_volume: float = 0.8
+## M / X keys and the HUD / title toggles: mute a bus without losing the slider position.
+var music_on: bool = true
+var sfx_on: bool = true
 var lang: String = "tr"
 var quality: String = "high"
 ## True once the player picked a quality in Settings; until then the platform default applies.
@@ -20,6 +23,7 @@ var no_save: bool = false
 func _ready() -> void:
 	no_save = Args.has("no-save")
 	quality = default_quality()
+	lang = "tr" if OS.get_locale_language() == "tr" else "en"
 	if not no_save:
 		_load()
 	if Args.has("lang"):
@@ -39,6 +43,8 @@ func _load() -> void:
 	master_volume = clampf(float(cfg.get_value("audio", "master", master_volume)), 0.0, 1.0)
 	music_volume = clampf(float(cfg.get_value("audio", "music", music_volume)), 0.0, 1.0)
 	sfx_volume = clampf(float(cfg.get_value("audio", "sfx", sfx_volume)), 0.0, 1.0)
+	music_on = bool(cfg.get_value("audio", "music_on", music_on))
+	sfx_on = bool(cfg.get_value("audio", "sfx_on", sfx_on))
 	lang = str(cfg.get_value("game", "lang", lang))
 	# Older saves wrote the "high" default on every save; only an explicit choice overrides the platform default.
 	quality_chosen = bool(cfg.get_value("video", "quality_chosen", false))
@@ -54,6 +60,8 @@ func save() -> void:
 	cfg.set_value("audio", "master", master_volume)
 	cfg.set_value("audio", "music", music_volume)
 	cfg.set_value("audio", "sfx", sfx_volume)
+	cfg.set_value("audio", "music_on", music_on)
+	cfg.set_value("audio", "sfx_on", sfx_on)
 	cfg.set_value("game", "lang", lang)
 	cfg.set_value("video", "quality", quality)
 	cfg.set_value("video", "quality_chosen", quality_chosen)
@@ -67,6 +75,18 @@ func set_volume(bus: String, v: float) -> void:
 		"master": master_volume = v
 		"music": music_volume = v
 		"sfx": sfx_volume = v
+	changed.emit()
+	save()
+
+
+func toggle_music() -> void:
+	music_on = not music_on
+	changed.emit()
+	save()
+
+
+func toggle_sfx() -> void:
+	sfx_on = not sfx_on
 	changed.emit()
 	save()
 

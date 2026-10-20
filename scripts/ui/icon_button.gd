@@ -1,6 +1,6 @@
 class_name IconButton
 extends Button
-## A 40x40 glass button with a vector icon drawn in code (no font glyph dependency) and an optional badge.
+## A 44x44 glass button with a vector icon drawn in code (no font glyph dependency) and an optional badge.
 
 var kind: String = "menu"
 var badge: int = -1
@@ -10,10 +10,12 @@ var slashed: bool = false
 func _init(icon_kind: String, tooltip: String = "") -> void:
 	kind = icon_kind
 	theme_type_variation = &"IconButton"
-	custom_minimum_size = Vector2(40, 40)
-	focus_mode = Control.FOCUS_NONE
+	custom_minimum_size = Vector2(UiTheme.MIN_TOUCH, UiTheme.MIN_TOUCH)
+	focus_mode = Control.FOCUS_ALL
 	tooltip_text = tooltip
-	pressed.connect(func() -> void: Audio.play("ui"))
+	pressed.connect(func() -> void:
+		Audio.play("ui")
+		UiTheme.release_pointer_focus(self))
 
 
 func set_badge(n: int) -> void:
@@ -60,6 +62,12 @@ func _draw() -> void:
 			draw_colored_polygon(PackedVector2Array([c + Vector2(-9, -3), c + Vector2(-5, -3), c + Vector2(0, -8), c + Vector2(0, 8), c + Vector2(-5, 3), c + Vector2(-9, 3)]), col)
 			draw_arc(c + Vector2(1, 0), 5.0, -0.9, 0.9, 8, col, w, true)
 			draw_arc(c + Vector2(1, 0), 9.0, -0.9, 0.9, 10, col, w, true)
+		"music":
+			draw_line(c + Vector2(-3, 6), c + Vector2(-3, -7), col, w, true)
+			draw_line(c + Vector2(7, 4), c + Vector2(7, -9), col, w, true)
+			draw_line(c + Vector2(-3, -7), c + Vector2(7, -9), col, 3.0, true)
+			draw_circle(c + Vector2(-6, 6), 3.2, col)
+			draw_circle(c + Vector2(4, 4), 3.2, col)
 		_:
 			draw_circle(c, 6.0, col)
 	if slashed:

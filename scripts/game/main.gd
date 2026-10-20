@@ -146,6 +146,19 @@ func _make_environment() -> Environment:
 	env.glow_bloom = 0.05
 	env.glow_hdr_threshold = 0.95
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
+	# glaze reflections: the generated workshop panorama only feeds the reflections (static sky, radiance
+	# computed once); the background and the ambient light stay the flat room colours
+	var pano := WorldBuilder.asset_texture("textures/workshop-pano.webp")
+	if pano != null:
+		var mat := PanoramaSkyMaterial.new()
+		mat.panorama = pano
+		mat.energy_multiplier = 0.45
+		var sky := Sky.new()
+		sky.sky_material = mat
+		sky.radiance_size = Sky.RADIANCE_SIZE_128
+		sky.process_mode = Sky.PROCESS_MODE_QUALITY
+		env.sky = sky
+		env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	return env
 
 
@@ -168,6 +181,8 @@ func _apply_quality() -> void:
 func _bake_static_textures() -> void:
 	var band: Texture2D = await baker.bake_band()
 	board.setup_frame(band)
+	if world["table_generated"]:
+		return
 	var wood: Texture2D = await baker.bake_wood()
 	var table: MeshInstance3D = world["table"]
 	var mat: StandardMaterial3D = table.material_override
@@ -176,6 +191,9 @@ func _bake_static_textures() -> void:
 
 
 func _boot() -> void:
+	# `--keyboard`: behave as if the last input came from the keyboard (focus rings show), for screenshots
+	if Args.has("keyboard"):
+		UiScreen.keyboard_mode = true
 	var lv: String = Args.value("level", "")
 	if lv == "daily":
 		GameState.start_level(GameState.DAILY)

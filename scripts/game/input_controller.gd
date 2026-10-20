@@ -1,7 +1,8 @@
 class_name InputController
 extends Node
 ## Pointer and key input on the table: tap = rotate, drag tile = swap, right-click / long-press = flip,
-## drag the table = tilt the view, wheel / pinch = zoom. Keys come through the Input Map.
+## drag the table = tilt the view, wheel / pinch = zoom. Keys come through the Input Map:
+## P / Esc pause and back, M music, X sound, L language; in play Z undo, H hint, R restart, F flip the hovered tile.
 
 const DRAG_THRESHOLD: float = 9.0
 const LONG_PRESS: float = 0.52
@@ -79,6 +80,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("toggle_language"):
 		Settings.toggle_language()
+	elif event.is_action_pressed("toggle_music"):
+		Settings.toggle_music()
+		GameState.toast.emit(Loc.t("musicOn" if Settings.music_on else "musicOff"), "")
+	elif event.is_action_pressed("toggle_sound"):
+		Settings.toggle_sfx()
+		GameState.toast.emit(Loc.t("soundOn" if Settings.sfx_on else "soundOff"), "")
 	elif event.is_action_pressed("flip_tile") and event is InputEventKey:
 		var t := _pick_tile(_mouse_pos())
 		if t != null:
@@ -174,10 +181,10 @@ func _handle_mouse_motion(e: InputEventMouseMotion) -> void:
 		if not _dragging:
 			if not GameState.puzzle.allow_swap:
 				if not _no_swap_toasted:
-					GameState.toast.emit(Loc.t("noSwapHere"))
+					GameState.toast.emit(Loc.t("noSwapHere"), "")
 					_no_swap_toasted = true
 			elif _tile.fixed:
-				GameState.toast.emit(Loc.t("fixedTile"))
+				GameState.toast.emit(Loc.t("fixedTile"), "bad")
 				GameState.tile_denied.emit(_tile.slot)
 				_tile = null
 			else:

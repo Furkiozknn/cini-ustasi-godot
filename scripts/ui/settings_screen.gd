@@ -30,9 +30,9 @@ func build() -> void:
 		s.min_value = 0.0
 		s.max_value = 1.0
 		s.step = 0.05
-		s.custom_minimum_size = Vector2(0, 22)
+		s.custom_minimum_size = Vector2(0, 30)
 		s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		s.focus_mode = Control.FOCUS_NONE
+		s.focus_mode = Control.FOCUS_ALL
 		s.value_changed.connect(func(val: float) -> void:
 			if not _syncing:
 				Settings.set_volume(key, val))
@@ -67,7 +67,7 @@ func build() -> void:
 	q_row.add_child(_q_high)
 	v.add_child(q_row)
 	_fullscreen = CheckButton.new()
-	_fullscreen.focus_mode = Control.FOCUS_NONE
+	_fullscreen.focus_mode = Control.FOCUS_ALL
 	_fullscreen.toggled.connect(func(on: bool) -> void:
 		if not _syncing:
 			Audio.play("ui")
@@ -77,6 +77,7 @@ func build() -> void:
 	var r := UiTheme.row()
 	_close = UiTheme.button("", "")
 	_close.pressed.connect(func() -> void: GameState.back())
+	primary = _close
 	r.add_child(_close)
 	v.add_child(r)
 	Settings.changed.connect(_sync)

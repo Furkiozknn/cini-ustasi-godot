@@ -10,9 +10,13 @@ const COBALT_DEEP: Color = Color("#16356d")
 const TURQ: Color = Color("#1fa3a3")
 const CORAL: Color = Color("#d9452b")
 const GOLD: Color = Color("#d9a441")
+const EMERALD: Color = Color("#2e8b57")
 const CREAM: Color = Color("#fbf7ee")
 const CARD_BG: Color = Color(253.0 / 255.0, 249.0 / 255.0, 240.0 / 255.0, 0.88)
 const GLASS_BG: Color = Color(253.0 / 255.0, 249.0 / 255.0, 240.0 / 255.0, 0.72)
+
+## Smallest height (and icon button width) of anything you press: 44 px for touch screens.
+const MIN_TOUCH: float = 44.0
 
 static var _theme: Theme = null
 static var _bold: FontVariation = null
@@ -52,6 +56,19 @@ static func flat(bg: Color, radius: float, border: Color = Color.TRANSPARENT, bo
 	return sb
 
 
+## The keyboard focus ring: a 3 px turquoise outline just outside the control (no fill).
+static func focus_ring(radius: float = 14.0) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.draw_center = false
+	sb.set_border_width_all(3)
+	sb.border_color = TURQ
+	sb.set_corner_radius_all(int(radius) + 3)
+	sb.set_expand_margin_all(3)
+	sb.corner_detail = 8
+	sb.anti_aliasing = true
+	return sb
+
+
 static func _button_styles(theme: Theme, type: String, bg: Color, hover: Color, pressed: Color, text: Color, shadow: Color) -> void:
 	var n := flat(bg, 14.0)
 	n.shadow_size = 6
@@ -74,7 +91,7 @@ static func _button_styles(theme: Theme, type: String, bg: Color, hover: Color, 
 	theme.set_stylebox("hover", type, h)
 	theme.set_stylebox("pressed", type, p)
 	theme.set_stylebox("disabled", type, d)
-	theme.set_stylebox("focus", type, StyleBoxEmpty.new())
+	theme.set_stylebox("focus", type, focus_ring(14.0))
 	theme.set_color("font_color", type, text)
 	theme.set_color("font_hover_color", type, text)
 	theme.set_color("font_pressed_color", type, text)
@@ -118,6 +135,23 @@ static func build() -> Theme:
 	toast.shadow_color = Color(70.0 / 255.0, 40.0 / 255.0, 15.0 / 255.0, 0.2)
 	t.set_type_variation("Toast", "PanelContainer")
 	t.set_stylebox("panel", "Toast", toast)
+	# good / bad toasts: a coloured edge on the left, like the browser version
+	for kind in [["ToastInfo", COBALT], ["ToastGood", EMERALD], ["ToastBad", CORAL]]:
+		var k: StyleBoxFlat = toast.duplicate()
+		k.border_width_left = 4
+		k.border_color = kind[1]
+		t.set_type_variation(kind[0], "PanelContainer")
+		t.set_stylebox("panel", kind[0], k)
+	var badge := flat(Color("#e9b955"), 999.0)
+	badge.content_margin_left = 12
+	badge.content_margin_right = 12
+	badge.content_margin_top = 4
+	badge.content_margin_bottom = 4
+	badge.shadow_size = 8
+	badge.shadow_color = Color(GOLD, 0.45)
+	badge.shadow_offset = Vector2(0, 3)
+	t.set_type_variation("RecordBadge", "PanelContainer")
+	t.set_stylebox("panel", "RecordBadge", badge)
 	var frame := flat(Color("#a4742f"), 4.0, Color("#e2bd7e"), 2)
 	frame.set_content_margin_all(7)
 	t.set_type_variation("PictureFrame", "PanelContainer")
@@ -140,7 +174,7 @@ static func build() -> Theme:
 	tile_disabled.bg_color = Color(1, 1, 1, 0.35)
 	tile_disabled.shadow_size = 0
 	t.set_stylebox("disabled", "LevelCard", tile_disabled)
-	t.set_stylebox("focus", "LevelCard", StyleBoxEmpty.new())
+	t.set_stylebox("focus", "LevelCard", focus_ring(14.0))
 	t.set_color("font_color", "LevelCard", COBALT_DEEP)
 	t.set_color("font_hover_color", "LevelCard", COBALT_DEEP)
 	t.set_color("font_pressed_color", "LevelCard", COBALT_DEEP)
@@ -172,7 +206,7 @@ static func build() -> Theme:
 	var ibd: StyleBoxFlat = ib.duplicate()
 	ibd.bg_color = Color(1, 1, 1, 0.3)
 	t.set_stylebox("disabled", "IconButton", ibd)
-	t.set_stylebox("focus", "IconButton", StyleBoxEmpty.new())
+	t.set_stylebox("focus", "IconButton", focus_ring(12.0))
 	t.set_color("font_color", "IconButton", COBALT_DEEP)
 	t.set_color("font_hover_color", "IconButton", COBALT_DEEP)
 	t.set_color("font_pressed_color", "IconButton", COBALT_DEEP)
@@ -216,7 +250,8 @@ static func build() -> Theme:
 	t.set_color("font_hover_color", "CheckButton", INK)
 	t.set_color("font_pressed_color", "CheckButton", INK)
 	t.set_color("font_focus_color", "CheckButton", INK)
-	t.set_stylebox("focus", "CheckButton", StyleBoxEmpty.new())
+	t.set_stylebox("focus", "CheckButton", focus_ring(10.0))
+	t.set_stylebox("focus", "HSlider", focus_ring(6.0))
 	# scroll
 	var sc := flat(Color(0, 0, 0, 0.05), 4.0)
 	t.set_stylebox("scroll", "VScrollBar", sc)
@@ -234,10 +269,18 @@ static func button(text: String, variation: String = "", min_w: float = 140.0) -
 	b.text = text
 	if variation != "":
 		b.theme_type_variation = variation
-	b.custom_minimum_size = Vector2(min_w, 0)
-	b.focus_mode = Control.FOCUS_NONE
-	b.pressed.connect(func() -> void: Audio.play("ui"))
+	b.custom_minimum_size = Vector2(min_w, MIN_TOUCH)
+	b.focus_mode = Control.FOCUS_ALL
+	b.pressed.connect(func() -> void:
+		Audio.play("ui")
+		release_pointer_focus(b))
 	return b
+
+
+## After a mouse / touch press, drop the focus again so Space in the game never re-presses the button.
+static func release_pointer_focus(c: Control) -> void:
+	if not UiScreen.keyboard_mode and c.has_focus():
+		c.release_focus()
 
 
 static func label(text: String, size: int = 15, color: Color = INK, bold: bool = false, align: HorizontalAlignment = HORIZONTAL_ALIGNMENT_LEFT) -> Label:

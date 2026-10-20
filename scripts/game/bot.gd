@@ -1,7 +1,7 @@
 class_name Bot
 extends Node
-## Autoplay bot (`--auto`): solves the live puzzle with the real solver and performs the moves one by
-## one through the same GameState API a player uses, from the title screen to the last level.
+## Autoplay bot (`--auto`): plans the live puzzle against its known (home) solution and performs the
+## moves one by one through the same GameState API a player uses, from the title screen to the last level.
 ## `--solve` applies the whole plan at once (jump straight to the kiln animation),
 ## `--quit-on-done` exits with code 0 (1 if anything went wrong) when the run is over.
 
@@ -88,14 +88,14 @@ func _process(delta: float) -> void:
 
 func _play_step() -> void:
 	if plan.is_empty():
+		# O(N) plan to the generated solution, the same plan that defines par (the backtracking
+		# solver is far too slow for the main thread on 6x6 boards and is only used by the tests)
 		var t0: int = Time.get_ticks_usec()
-		var solver := Solver.new()
-		var sol := solver.solve(GameState.puzzle, GameState.slots)
+		plan = PuzzleCore.plan_moves(GameState.puzzle, GameState.slots, GameState.puzzle.solution())
 		solve_ms = (Time.get_ticks_usec() - t0) / 1000.0
-		if sol.is_empty():
-			_fail("solver failed on level %s" % GameState.puzzle.key)
+		if plan.is_empty():
+			_fail("empty plan on level %s" % GameState.puzzle.key)
 			return
-		plan = PuzzleCore.plan_moves(GameState.puzzle, GameState.slots, sol)
 		plan_index = 0
 		timer = 0.4
 		_publish()

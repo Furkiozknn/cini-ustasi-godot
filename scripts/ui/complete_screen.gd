@@ -1,6 +1,7 @@
 class_name CompleteScreen
 extends UiScreen
-## Level complete card: stars pop in, the fired panel is previewed, moves vs par vs best, next/replay.
+## Level complete card: stars pop in, a "new record" badge when the best improved, the fired panel is
+## previewed, moves vs par vs best, then next / replay / levels / title screen.
 
 var baker: TextureBaker
 var _title: Label
@@ -14,6 +15,9 @@ var _note: Label
 var _next: Button
 var _replay: Button
 var _levels: Button
+var _home: Button
+var _record: PanelContainer
+var _record_label: Label
 
 
 func build() -> void:
@@ -29,6 +33,13 @@ func build() -> void:
 	_stars._update_size()
 	sh.add_child(_stars)
 	v.add_child(sh)
+	var rh := CenterContainer.new()
+	_record = PanelContainer.new()
+	_record.theme_type_variation = &"RecordBadge"
+	_record_label = UiTheme.label("", 13, Color("#4a2e05"), true, HORIZONTAL_ALIGNMENT_CENTER)
+	_record.add_child(_record_label)
+	rh.add_child(_record)
+	v.add_child(rh)
 	var ph := CenterContainer.new()
 	var frame := PanelContainer.new()
 	frame.theme_type_variation = &"PictureFrame"
@@ -64,10 +75,15 @@ func build() -> void:
 	_replay.pressed.connect(func() -> void: GameState.replay_level())
 	_levels = UiTheme.button("", "AltButton")
 	_levels.pressed.connect(func() -> void: GameState.show_levels())
+	_home = UiTheme.button("", "AltButton")
+	_home.pressed.connect(func() -> void: GameState.show_title())
 	r.add_child(_next)
 	r.add_child(_replay)
-	r.add_child(_levels)
 	v.add_child(r)
+	var r2 := UiTheme.row()
+	r2.add_child(_levels)
+	r2.add_child(_home)
+	v.add_child(r2)
 
 
 func refresh() -> void:
@@ -87,7 +103,11 @@ func refresh() -> void:
 	_next.text = Loc.t("next")
 	_replay.text = Loc.t("replay")
 	_levels.text = Loc.t("levels")
+	_home.text = Loc.t("backToTitle")
 	_next.visible = GameState.has_next_level()
+	primary = _next if _next.visible else _replay
+	_record.get_parent().visible = bool(res.get("record", false))
+	_record_label.text = Loc.t("newRecord").to_upper()
 
 
 func _load_preview(pz: Puzzle) -> void:
@@ -102,6 +122,12 @@ func _load_preview(pz: Puzzle) -> void:
 func show_screen() -> void:
 	super.show_screen()
 	_stars.animate()
+	if _record.get_parent().visible:
+		_record.pivot_offset = _record.size / 2.0
+		_record.scale = Vector2.ZERO
+		var tw := create_tween()
+		tw.tween_interval(0.5)
+		tw.tween_property(_record, "scale", Vector2.ONE, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	var stars: int = int(GameState.result.get("stars", 0))
 	for i in stars:
 		get_tree().create_timer(0.15 + i * 0.18).timeout.connect(func() -> void: Audio.play("star", 1.0, 1.0 + i * 0.12))
