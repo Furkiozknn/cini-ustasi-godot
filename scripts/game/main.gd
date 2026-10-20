@@ -146,20 +146,32 @@ func _make_environment() -> Environment:
 	env.glow_bloom = 0.05
 	env.glow_hdr_threshold = 0.95
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
-	# glaze reflections: the generated workshop panorama only feeds the reflections (static sky, radiance
-	# computed once); the background and the ambient light stay the flat room colours
-	var pano := WorldBuilder.asset_texture("textures/workshop-pano.webp")
-	if pano != null:
-		var mat := PanoramaSkyMaterial.new()
-		mat.panorama = pano
-		mat.energy_multiplier = 0.45
-		var sky := Sky.new()
-		sky.sky_material = mat
-		sky.radiance_size = Sky.RADIANCE_SIZE_128
-		sky.process_mode = Sky.PROCESS_MODE_QUALITY
-		env.sky = sky
-		env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	return env
+
+
+## High only: the generated workshop panorama feeds the glaze reflections (static sky, radiance computed
+## once); the background and the ambient light stay the flat room colours. Low (the browser default) has
+## no sky at all, so no radiance map is ever built or sampled.
+func _apply_reflections(on: bool) -> void:
+	var env: Environment = environment.environment
+	if not on:
+		env.sky = null
+		env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
+		return
+	if env.sky != null:
+		return
+	var pano := WorldBuilder.asset_texture("textures/workshop-pano.webp")
+	if pano == null:
+		return
+	var mat := PanoramaSkyMaterial.new()
+	mat.panorama = pano
+	mat.energy_multiplier = 0.45
+	var sky := Sky.new()
+	sky.sky_material = mat
+	sky.radiance_size = Sky.RADIANCE_SIZE_64
+	sky.process_mode = Sky.PROCESS_MODE_QUALITY
+	env.sky = sky
+	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 
 
 func _apply_quality() -> void:
@@ -173,6 +185,11 @@ func _apply_quality() -> void:
 		RenderingServer.SHADOW_QUALITY_HARD if low else RenderingServer.SHADOW_QUALITY_SOFT_MEDIUM)
 	get_viewport().msaa_3d = Viewport.MSAA_DISABLED if low else Viewport.MSAA_2X
 	environment.environment.glow_enabled = not low
+	_apply_reflections(not low)
+	# on Low only the board and its tiles cast shadows; the generated props do not
+	for m: Node3D in world["models"]:
+		WorldBuilder.set_model_shadows(m, not low)
+	cat.set_shadows(not low)
 	baker.cell_px = 128 if low else 256
 	var dust: CPUParticles3D = world["dust"]
 	dust.amount = 60 if low else 170

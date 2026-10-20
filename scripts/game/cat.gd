@@ -54,6 +54,12 @@ func _ready() -> void:
 	visible = false
 
 
+## The generated cat casts a shadow on High only (Main calls this with the quality tier).
+func set_shadows(on: bool) -> void:
+	if _model != null:
+		WorldBuilder.set_model_shadows(_model, on)
+
+
 func _process(delta: float) -> void:
 	t += delta
 	_time += delta

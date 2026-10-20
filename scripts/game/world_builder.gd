@@ -91,7 +91,7 @@ static func _textured(tex: Texture2D, uv_scale: Vector2, tint: Color = Color.WHI
 	m.albedo_color = tint
 	m.roughness = roughness
 	m.uv1_scale = Vector3(uv_scale.x, uv_scale.y, 1.0)
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	return m
 
 
@@ -190,6 +190,12 @@ static func build(parent: Node3D) -> Dictionary:
 		assets.append("paint-set")
 	refs["assets"] = assets
 	refs["kiln_model"] = kiln != null
+	# generated models whose shadows Main switches with the quality tier (off on Low)
+	var models: Array[Node3D] = []
+	for m in [kiln, paint]:
+		if m != null:
+			models.append(m)
+	refs["models"] = models
 	# table top (textured later by Main once the wood texture is baked, or with the generated wood)
 	var table := MeshInstance3D.new()
 	table.name = "TableTop"
@@ -209,7 +215,7 @@ static func build(parent: Node3D) -> Dictionary:
 		wood.albedo_color = Color.WHITE
 		wood.uv1_scale = Vector3(1.5 / 6.4, 1.0, 1.0 / 4.6)
 		wood.uv1_offset = Vector3(0.5, 0.0, 0.5)
-		wood.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+		wood.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 		assets.append("wood")
 	table.material_override = wood
 	table.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

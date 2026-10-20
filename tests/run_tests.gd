@@ -41,6 +41,8 @@ func _ready() -> void:
 	_run("toast_kinds", test_toast_kinds)
 	_run("cylinder_points_along_its_yaw", test_cylinder_axis)
 	_run("generated_models_fit", test_model_fit)
+	_run("generated_models_are_opaque", test_model_materials)
+	_run("web_defaults_to_low_quality", test_web_low)
 	var total: int = _passed + _failed
 	print("Tests took %d ms" % (Time.get_ticks_msec() - t0))
 	if _failed == 0:
@@ -621,3 +623,37 @@ func test_model_fit() -> void:
 	check(paint != null and absf((paint.get_meta("size") as Vector3).z - 0.6) < 0.01, "paint set is 0.6 m deep")
 	if paint != null:
 		paint.free()
+
+
+func _materials(n: Node, out: Array) -> void:
+	if n is MeshInstance3D:
+		var mi := n as MeshInstance3D
+		for i in mi.mesh.get_surface_count():
+			out.append(mi.get_active_material(i))
+	for c in n.get_children():
+		_materials(c, out)
+
+
+func test_model_materials() -> void:
+	# one opaque pass per model: no alpha blending, no depth pre-pass, no second material
+	for fit in [WorldBuilder.KILN_FIT, WorldBuilder.CAT_FIT, WorldBuilder.PAINT_FIT]:
+		var m := WorldBuilder.asset_model(fit)
+		if m == null:
+			check(false, "%s loads" % fit["file"])
+			continue
+		var mats: Array = []
+		_materials(m, mats)
+		check_eq(mats.size(), 1, "%s has one surface" % fit["file"])
+		for mat in mats:
+			var sm := mat as BaseMaterial3D
+			check(sm != null, "%s uses a standard material" % fit["file"])
+			if sm != null:
+				check_eq(sm.transparency, BaseMaterial3D.TRANSPARENCY_DISABLED, "%s is opaque" % fit["file"])
+				check(sm.next_pass == null, "%s has no extra pass" % fit["file"])
+		m.free()
+
+
+func test_web_low() -> void:
+	# the browser build (OS feature "web") and --web-sim start on the Low tier
+	check_eq(Settings.default_quality(), "low" if OS.has_feature("web") or Args.has("web-sim") else "high", "default tier")
+	check(not OS.has_feature("web") or Settings.is_web(), "web feature means web defaults")
