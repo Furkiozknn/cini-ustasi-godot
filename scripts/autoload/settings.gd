@@ -11,12 +11,15 @@ var music_volume: float = 0.8
 var sfx_volume: float = 1.0
 var lang: String = "tr"
 var quality: String = "high"
+## True once the player picked a quality in Settings; until then the platform default applies.
+var quality_chosen: bool = false
 var fullscreen: bool = false
 var no_save: bool = false
 
 
 func _ready() -> void:
 	no_save = Args.has("no-save")
+	quality = default_quality()
 	if not no_save:
 		_load()
 	if Args.has("lang"):
@@ -37,7 +40,10 @@ func _load() -> void:
 	music_volume = clampf(float(cfg.get_value("audio", "music", music_volume)), 0.0, 1.0)
 	sfx_volume = clampf(float(cfg.get_value("audio", "sfx", sfx_volume)), 0.0, 1.0)
 	lang = str(cfg.get_value("game", "lang", lang))
-	quality = str(cfg.get_value("video", "quality", quality))
+	# Older saves wrote the "high" default on every save; only an explicit choice overrides the platform default.
+	quality_chosen = bool(cfg.get_value("video", "quality_chosen", false))
+	if quality_chosen:
+		quality = str(cfg.get_value("video", "quality", quality))
 	fullscreen = bool(cfg.get_value("video", "fullscreen", fullscreen))
 
 
@@ -50,6 +56,7 @@ func save() -> void:
 	cfg.set_value("audio", "sfx", sfx_volume)
 	cfg.set_value("game", "lang", lang)
 	cfg.set_value("video", "quality", quality)
+	cfg.set_value("video", "quality_chosen", quality_chosen)
 	cfg.set_value("video", "fullscreen", fullscreen)
 	cfg.save(PATH)
 
@@ -77,8 +84,18 @@ func toggle_language() -> void:
 
 func set_quality(q: String) -> void:
 	quality = "low" if q == "low" else "high"
+	quality_chosen = true
 	changed.emit()
 	save()
+
+
+## The browser build (WebGL2, no threads) gets the cheap tier; `--web-sim` forces the same defaults natively.
+static func is_web() -> bool:
+	return OS.has_feature("web") or Args.has("web-sim")
+
+
+static func default_quality() -> String:
+	return "low" if is_web() else "high"
 
 
 func set_fullscreen(on: bool) -> void:

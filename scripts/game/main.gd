@@ -18,6 +18,10 @@ var environment: WorldEnvironment
 var _time: float = 0.0
 var _debug_label: Label = null
 var _restart_at: float = -1.0
+var _stats: bool = false
+var _stats_frames: int = 0
+var _stats_time: float = 0.0
+var _stats_worst: float = 0.0
 
 
 func _ready() -> void:
@@ -46,7 +50,7 @@ func _ready() -> void:
 	sun.light_energy = 1.45
 	sun.shadow_enabled = true
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
-	sun.directional_shadow_max_distance = 26.0
+	sun.directional_shadow_max_distance = 18.0
 	sun.shadow_bias = 0.04
 	sun.shadow_normal_bias = 1.5
 	sun.position = Vector3(-5.5, 8.0, -2.5)
@@ -115,6 +119,9 @@ func _ready() -> void:
 	gallery.rebuild()
 	if Args.has("debug"):
 		_make_debug_overlay()
+	_stats = Args.has("stats")
+	if _stats:
+		RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
 	_boot()
 
 
@@ -144,12 +151,18 @@ func _make_environment() -> Environment:
 
 func _apply_quality() -> void:
 	var low: bool = Settings.is_low_quality()
-	sun.shadow_enabled = not low
+	# One 16-bit 2048 (high) / 1024 (low) directional map is plenty for an 18 m orthogonal split and
+	# costs a fraction of the engine's 4096 default; "low" samples it with a single hard tap instead
+	# of the 13-tap soft filter. MSAA and glow are the two most expensive extras, so "low" drops them.
+	sun.shadow_enabled = true
+	RenderingServer.directional_shadow_atlas_set_size(1024 if low else 2048, true)
+	RenderingServer.directional_soft_shadow_filter_set_quality(
+		RenderingServer.SHADOW_QUALITY_HARD if low else RenderingServer.SHADOW_QUALITY_SOFT_MEDIUM)
 	get_viewport().msaa_3d = Viewport.MSAA_DISABLED if low else Viewport.MSAA_2X
 	environment.environment.glow_enabled = not low
 	baker.cell_px = 128 if low else 256
 	var dust: CPUParticles3D = world["dust"]
-	dust.amount = 80 if low else 170
+	dust.amount = 60 if low else 170
 
 
 func _bake_static_textures() -> void:
@@ -247,6 +260,8 @@ func _process(delta: float) -> void:
 		mat.albedo_color.a = 0.75 + sin(_time * 11.0) * 0.1
 	if _debug_label != null and Engine.get_process_frames() % 10 == 0:
 		_update_debug()
+	if _stats:
+		_update_stats(delta)
 	# test helper: `--restart-at SECONDS` reshuffles the board once at that time
 	if _restart_at > 0.0 and _time >= _restart_at:
 		_restart_at = -1.0
@@ -267,6 +282,26 @@ func _make_debug_overlay() -> void:
 	_debug_label.add_theme_color_override("font_shadow_color", Color.BLACK)
 	_debug_label.add_theme_font_size_override("font_size", 12)
 	layer.add_child(_debug_label)
+
+
+## `--stats`: one line per 60 frames with the frame time (avg / worst, ms), draw calls and primitives.
+func _update_stats(delta: float) -> void:
+	var real_delta: float = delta / maxf(Engine.time_scale, 0.001)
+	_stats_frames += 1
+	_stats_time += real_delta
+	_stats_worst = maxf(_stats_worst, real_delta)
+	if _stats_frames < 60:
+		return
+	var rid: RID = get_viewport().get_viewport_rid()
+	print("STATS frame=%d fps=%d avg_ms=%.1f worst_ms=%.1f cpu_ms=%.1f gpu_ms=%.1f draw_calls=%d prims=%d objects=%d screen=%s" % [
+		Engine.get_process_frames(), Engine.get_frames_per_second(), _stats_time / _stats_frames * 1000.0, _stats_worst * 1000.0,
+		RenderingServer.viewport_get_measured_render_time_cpu(rid), RenderingServer.viewport_get_measured_render_time_gpu(rid),
+		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
+		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME),
+		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME), String(GameState.screen)])
+	_stats_frames = 0
+	_stats_time = 0.0
+	_stats_worst = 0.0
 
 
 func _update_debug() -> void:

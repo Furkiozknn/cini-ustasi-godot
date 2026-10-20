@@ -25,3 +25,15 @@ static func logo(px: float) -> TileFace:
 	f.custom_minimum_size = Vector2(px, px)
 	f.size = Vector2(px, px)
 	return f
+
+
+## A `px`-sized rect for the baked logo texture (TextureBaker.bake_logo): one draw call instead of
+## the vector drawing above being re-issued every frame.
+static func logo_rect(px: float) -> TextureRect:
+	var r := TextureRect.new()
+	r.custom_minimum_size = Vector2(px, px)
+	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	r.stretch_mode = TextureRect.STRETCH_SCALE
+	r.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return r

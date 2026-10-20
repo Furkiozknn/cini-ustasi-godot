@@ -12,6 +12,9 @@ var _daily: Button
 var _settings: IconButton
 var _lang: Button
 var _progress: Label
+var _progress_star: StarRow
+## The logo tile as one baked texture (filled in by Ui once the baker is done; see TileFace.logo_rect).
+var logo: TextureRect
 
 
 func build() -> void:
@@ -20,7 +23,7 @@ func build() -> void:
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	card.add_child(v)
 	var logo_holder := CenterContainer.new()
-	var logo := TileFace.logo(110)
+	logo = TileFace.logo_rect(110)
 	logo_holder.add_child(logo)
 	v.add_child(logo_holder)
 	_title = UiTheme.label("Çini Ustası", 42, UiTheme.COBALT_DEEP, true, HORIZONTAL_ALIGNMENT_CENTER)
@@ -67,8 +70,15 @@ func build() -> void:
 	foot.add_child(_settings)
 	foot.add_child(_lang)
 	v.add_child(foot)
+	# "12/30 · 36" followed by a drawn star: the bundled font has no ★ and the web build has no
+	# system fonts to fall back on.
+	var progress_row := UiTheme.row(4)
 	_progress = UiTheme.label("", 12, UiTheme.INK_SOFT, false, HORIZONTAL_ALIGNMENT_CENTER)
-	v.add_child(_progress)
+	progress_row.add_child(_progress)
+	_progress_star = StarRow.new(1, 11, 1)
+	_progress_star.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	progress_row.add_child(_progress_star)
+	v.add_child(progress_row)
 
 
 func refresh() -> void:

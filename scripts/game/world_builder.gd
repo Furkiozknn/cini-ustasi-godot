@@ -161,7 +161,7 @@ static func build(parent: Node3D) -> Dictionary:
 	# dust motes in the window light
 	var dust := CPUParticles3D.new()
 	dust.name = "Dust"
-	dust.amount = 80 if Settings.is_low_quality() else 170
+	dust.amount = 60 if Settings.is_low_quality() else 170
 	dust.lifetime = 14.0
 	dust.preprocess = 14.0
 	dust.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX

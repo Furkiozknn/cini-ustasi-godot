@@ -26,7 +26,7 @@ const STRINGS: Dictionary = {
 		"settings": "Ayarlar", "masterVolume": "Ana ses", "musicVolume": "Müzik", "sfxVolume": "Efektler",
 		"language": "Dil", "quality": "Grafik", "qualityLow": "Düşük", "qualityHigh": "Yüksek",
 		"fullscreen": "Tam ekran", "on": "Açık", "off": "Kapalı", "howToPlay": "Nasıl oynanır?",
-		"progressLine": "%d/%d · %d ★", "firing": "Fırınlanıyor…", "glazing": "Sırlanıyor…",
+		"progressLine": "%d/%d · %d", "firing": "Fırınlanıyor…", "glazing": "Sırlanıyor…",
 		"hintTip": "İpucu (H)", "undoTip": "Geri al (Z)", "restartTip": "Yeniden (R)", "menuTip": "Menü (Esc)",
 	},
 	"en": {
@@ -49,7 +49,7 @@ const STRINGS: Dictionary = {
 		"settings": "Settings", "masterVolume": "Master volume", "musicVolume": "Music", "sfxVolume": "Effects",
 		"language": "Language", "quality": "Graphics", "qualityLow": "Low", "qualityHigh": "High",
 		"fullscreen": "Fullscreen", "on": "On", "off": "Off", "howToPlay": "How to play",
-		"progressLine": "%d/%d · %d ★", "firing": "Firing…", "glazing": "Glazing…",
+		"progressLine": "%d/%d · %d", "firing": "Firing…", "glazing": "Glazing…",
 		"hintTip": "Hint (H)", "undoTip": "Undo (Z)", "restartTip": "Restart (R)", "menuTip": "Menu (Esc)",
 	},
 }

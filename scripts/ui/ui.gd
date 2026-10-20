@@ -44,6 +44,15 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_apply_scale)
 	_apply_scale()
 	_on_screen_changed(GameState.screen, GameState.SCREEN_LOADING)
+	_bake_logo()
+
+
+## The logo tile is drawn once into a texture instead of as ~60 vector commands every frame
+## (that was most of the title screen's draw calls).
+func _bake_logo() -> void:
+	var tex: Texture2D = await baker.bake_logo()
+	hud.logo.texture = tex
+	screens[GameState.SCREEN_TITLE].logo.texture = tex
 
 
 func _exit_tree() -> void:

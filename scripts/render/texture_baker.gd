@@ -8,6 +8,7 @@ var cell_px: int = 256
 var _picture_cache: Dictionary = {}
 var _band: ImageTexture = null
 var _wood: ImageTexture = null
+var _logo: ImageTexture = null
 
 
 func _ready() -> void:
@@ -109,6 +110,19 @@ func bake_band() -> ImageTexture:
 	vp.add_child(ctl)
 	_band = await _capture(vp, true)
 	return _band
+
+
+## The logo tile for the UI (title card and HUD), 256 px with mipmaps.
+func bake_logo() -> ImageTexture:
+	if _logo != null:
+		return _logo
+	if headless:
+		_logo = _placeholder(MotifPainter.PALETTE.glaze)
+		return _logo
+	var vp := _make_viewport(256, 256)
+	vp.add_child(TileFace.logo(256))
+	_logo = await _capture(vp, true)
+	return _logo
 
 
 func bake_wood() -> ImageTexture:

@@ -20,6 +20,8 @@ var _settings: IconButton
 var _lang: Button
 var _menu: IconButton
 var _narrow: bool = false
+## The logo tile as one baked texture (filled in by Ui once the baker is done).
+var logo: TextureRect
 
 
 func _init() -> void:
@@ -46,7 +48,7 @@ func _ready() -> void:
 	# logo + name
 	var logo_box := HBoxContainer.new()
 	logo_box.add_theme_constant_override("separation", 8)
-	var logo := TileFace.logo(30)
+	logo = TileFace.logo_rect(30)
 	logo.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	logo_box.add_child(logo)
 	_name_label = UiTheme.label("Çini Ustası", 17, UiTheme.COBALT_DEEP, true)

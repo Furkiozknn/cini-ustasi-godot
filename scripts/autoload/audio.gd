@@ -28,6 +28,8 @@ var _headless: bool = false
 var _master_idx: int = 0
 var _music_idx: int = 0
 var _sfx_idx: int = 0
+var _synth_ms: float = 0.0
+var _synth_worst_ms: float = 0.0
 
 
 func _ready() -> void:
@@ -106,7 +108,11 @@ func _enqueue_all() -> void:
 	_queue.append(_gen_sfx.bind("lift"))
 	_queue.append(_gen_sfx.bind("deny"))
 	_queue.append(_gen_sfx.bind("star"))
-	_queue.append(_gen_drone)
+	# the 8 s drone is the biggest job: render it one second per frame
+	var drone_synth := Synth.new(8.0, 98)
+	for sec in 8:
+		_queue.append(drone_synth.drone.bind(8.0, float(sec), float(sec + 1)))
+	_queue.append(_gen_drone.bind(drone_synth))
 	for i in SCALE.size():
 		_queue.append(_gen_note.bind(i))
 	_queue.append(_gen_low_note)
@@ -119,9 +125,15 @@ func _process(delta: float) -> void:
 	# Spread sample synthesis over frames: one job per frame keeps start-up smooth.
 	if not _queue.is_empty():
 		var job: Callable = _queue.pop_front()
+		var t0: int = Time.get_ticks_usec()
 		job.call()
+		var ms: float = (Time.get_ticks_usec() - t0) / 1000.0
+		_synth_ms += ms
+		_synth_worst_ms = maxf(_synth_worst_ms, ms)
 		if _queue.is_empty():
 			_music_ready = true
+			if Args.has("stats"):
+				print("SYNTH done frame=%d total_ms=%.0f worst_job_ms=%.0f" % [Engine.get_process_frames(), _synth_ms, _synth_worst_ms])
 	_update_music(delta)
 
 
@@ -201,9 +213,7 @@ func _gen_low_note() -> void:
 	_low_note = s.to_wav()
 
 
-func _gen_drone() -> void:
-	var s := Synth.new(8.0, 98)
-	s.drone(8.0)
+func _gen_drone(s: Synth) -> void:
 	_drone = s.to_wav(true)
 
 

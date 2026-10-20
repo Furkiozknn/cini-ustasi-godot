@@ -43,7 +43,9 @@ The screenshots in `docs/` are Movie Maker frames rendered by the game itself (s
 - **Synthesised audio**: an oud-like generative music loop on a Hicaz scale with a drone and a delay
   bus, plus clicks, chimes, the kiln's whoosh and a fanfare, all generated at start-up in GDScript.
 - **Menus with transitions**, pause, **settings** (master/music/effects volume, language TR/EN, quality
-  low/high, fullscreen), toasts, a collection gallery and a level select with stars.
+  low/high, fullscreen), toasts, a collection gallery and a level select with stars. "High" uses a
+  2048 soft shadow map, 2× MSAA and glow; "low" (the default in the browser) a 1024 hard shadow map
+  and neither MSAA nor glow, which is about half the GPU time on an integrated GPU.
 - **Save system** in `user://` (progress and settings as JSON / ConfigFile), tolerant to malformed data.
 - **Data in resources**: levels, chapters and the palette live in `.tres` files under `resources/`.
 
@@ -118,6 +120,8 @@ window/size/viewport_height=780
 | `--screen levels\|collection\|settings\|howto\|pause` | Open a screen at start (`--ch N` picks the how-to chapter) |
 | `--lang en\|tr` | Interface language |
 | `--quality low\|high` | Graphics quality for this run |
+| `--web-sim` | Apply the browser defaults natively (quality `low` unless the player chose otherwise) |
+| `--stats` | Print frame time, draw calls and primitives every 60 frames (and the synth timing) |
 | `--speed X` | `Engine.time_scale` (fast-forward for bot runs) |
 | `--nohowto` | Skip the chapter how-to cards |
 | `--mute` | Silence the audio and skip sample synthesis |
