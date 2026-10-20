@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LevelDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/level_def.gd" id="1_level"]
+
+[resource]
+script = ExtResource("1_level")
+n = 6
+m = 9
+shuf = 1.0
+fix = 3
+flip = 7
+name_tr = "Ustanın Mührü"
+name_en = "Master's Seal"

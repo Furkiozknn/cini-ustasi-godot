@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LevelDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/level_def.gd" id="1_level"]
+
+[resource]
+script = ExtResource("1_level")
+n = 6
+m = 8
+shuf = 1.0
+fix = 4
+flip = 6
+name_tr = "Yıldızlı Gök"
+name_en = "Starry Sky"

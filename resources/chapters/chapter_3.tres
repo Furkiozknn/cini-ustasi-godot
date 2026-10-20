@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="ChapterDef" load_steps=13 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/chapter_def.gd" id="1_chapter"]
+[ext_resource type="Script" path="res://scripts/data/level_def.gd" id="1_level"]
+[ext_resource type="Resource" path="res://resources/levels/level_21.tres" id="2_lvl"]
+[ext_resource type="Resource" path="res://resources/levels/level_22.tres" id="3_lvl"]
+[ext_resource type="Resource" path="res://resources/levels/level_23.tres" id="4_lvl"]
+[ext_resource type="Resource" path="res://resources/levels/level_24.tres" id="5_lvl"]
+[ext_resource type="Resource" path="res://resources/levels/level_25.tres" id="6_lvl"]
+[ext_resource type="Resource" path="res://resources/levels/level_26.tres" id="7_lvl"]
+[ext_resource type="Resource" path="res://resources/levels/level_27.tres" id="8_lvl"]
+[ext_resource type="Resource" path="res://resources/levels/level_28.tres" id="9_lvl"]
+[ext_resource type="Resource" path="res://resources/levels/level_29.tres" id="10_lvl"]
+[ext_resource type="Resource" path="res://resources/levels/level_30.tres" id="11_lvl"]
+
+[resource]
+script = ExtResource("1_chapter")
+name_tr = "Usta"
+name_en = "Master"
+desc_tr = "Sabit çiniler, çift yüzlü çiniler, 6×6 panolar"
+desc_en = "Fixed tiles, double-sided tiles, 6×6 boards"
+levels = Array[ExtResource("1_level")]([ExtResource("2_lvl"), ExtResource("3_lvl"), ExtResource("4_lvl"), ExtResource("5_lvl"), ExtResource("6_lvl"), ExtResource("7_lvl"), ExtResource("8_lvl"), ExtResource("9_lvl"), ExtResource("10_lvl"), ExtResource("11_lvl")])

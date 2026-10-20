@@ -1,0 +1,13 @@
+# Godot 4 generated files
+.godot/
+build/
+override.cfg
+*.tmp
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+
+# keep .uid files (they are tracked)
+!*.uid

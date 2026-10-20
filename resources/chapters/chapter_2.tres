@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="ChapterDef" load_steps=13 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/chapter_def.gd" id="1_chapter"]
+[ext_resource type="Script" path="res://scripts/data/level_def.gd" id="1_level"]
+[ext_resource type="Resource" path="res://resources/levels/level_11.tres" id="2_lvl"]
+[ext_resource type="Resource" path="res://resources/levels/level_12.tres" id="3_lvl"]
+[ext_resource type="Resource" path="res://resources/levels/level_13.tres" id="4_lvl"]
+[ext_resource type="Resource" path="res://resources/levels/level_14.tres" id="5_lvl"]
+[ext_resource type="Resource" path="res://resources/levels/level_15.tres" id="6_lvl"]
+[ext_resource type="Resource" path="res://resources/levels/level_16.tres" id="7_lvl"]
+[ext_resource type="Resource" path="res://resources/levels/level_17.tres" id="8_lvl"]
+[ext_resource type="Resource" path="res://resources/levels/level_18.tres" id="9_lvl"]
+[ext_resource type="Resource" path="res://resources/levels/level_19.tres" id="10_lvl"]
+[ext_resource type="Resource" path="res://resources/levels/level_20.tres" id="11_lvl"]
+
+[resource]
+script = ExtResource("1_chapter")
+name_tr = "Kalfa"
+name_en = "Journeyman"
+desc_tr = "Döndür ve yer değiştir"
+desc_en = "Rotate and swap"
+levels = Array[ExtResource("1_level")]([ExtResource("2_lvl"), ExtResource("3_lvl"), ExtResource("4_lvl"), ExtResource("5_lvl"), ExtResource("6_lvl"), ExtResource("7_lvl"), ExtResource("8_lvl"), ExtResource("9_lvl"), ExtResource("10_lvl"), ExtResource("11_lvl")])

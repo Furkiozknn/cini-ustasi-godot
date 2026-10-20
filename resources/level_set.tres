@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LevelSet" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/level_set.gd" id="1_set"]
+[ext_resource type="Script" path="res://scripts/data/chapter_def.gd" id="1_chapter"]
+[ext_resource type="Resource" path="res://resources/chapters/chapter_1.tres" id="2_ch"]
+[ext_resource type="Resource" path="res://resources/chapters/chapter_2.tres" id="3_ch"]
+[ext_resource type="Resource" path="res://resources/chapters/chapter_3.tres" id="4_ch"]
+[ext_resource type="Resource" path="res://resources/levels/daily.tres" id="5_daily"]
+
+[resource]
+script = ExtResource("1_set")
+chapters = Array[ExtResource("1_chapter")]([ExtResource("2_ch"), ExtResource("3_ch"), ExtResource("4_ch")])
+daily = ExtResource("5_daily")

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LevelDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/level_def.gd" id="1_level"]
+
+[resource]
+script = ExtResource("1_level")
+n = 4
+m = 6
+shuf = 1.0
+fix = 2
+flip = 3
+name_tr = "Ters Yüz"
+name_en = "Flip Side"

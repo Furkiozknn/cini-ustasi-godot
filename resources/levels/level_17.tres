@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="LevelDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/level_def.gd" id="1_level"]
+
+[resource]
+script = ExtResource("1_level")
+n = 5
+m = 6
+shuf = 0.6
+fix = 0
+flip = 0
+name_tr = "Şadırvan"
+name_en = "Ablution Fountain"
