@@ -117,11 +117,13 @@ func _ready() -> void:
 	_apply_quality()
 	_bake_static_textures()
 	gallery.rebuild()
+	_perf_experiments()
 	if Args.has("debug"):
 		_make_debug_overlay()
 	_stats = Args.has("stats")
 	if _stats:
 		RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
+		print("STATS quality=%s web=%s window=%s scale=%.2f args=%s" % [Settings.quality, Settings.is_web(), get_window().size, get_window().content_scale_factor, OS.get_cmdline_user_args() + Args._list()])
 	_boot()
 
 
@@ -193,6 +195,32 @@ func _apply_quality() -> void:
 	baker.cell_px = 128 if low else 256
 	var dust: CPUParticles3D = world["dust"]
 	dust.amount = 60 if low else 170
+
+
+## Temporary `--perf-*` switches for browser A/B measurements.
+func _perf_experiments() -> void:
+	if Args.has("perf-nocat"):
+		cat.process_mode = Node.PROCESS_MODE_DISABLED
+		cat.visible = false
+	if Args.has("perf-noshadow"):
+		sun.shadow_enabled = false
+	if Args.has("perf-noui"):
+		ui.visible = false
+	if Args.has("perf-nodust"):
+		(world["dust"] as CPUParticles3D).visible = false
+	if Args.has("perf-nofx"):
+		for k in ["dust", "kiln_glow", "sparks"]:
+			(world[k] as Node3D).visible = false
+		(world["kiln_light"] as Light3D).visible = false
+	if Args.has("perf-no3d"):
+		get_node("World").visible = false
+		board.visible = false
+	if Args.has("perf-nocredit"):
+		var title: Node = ui.screens[GameState.SCREEN_TITLE]
+		(title.get("_credit") as Control).visible = false
+	if Args.has("perf-nofocus"):
+		get_viewport().gui_release_focus()
+		UiScreen.focus_disabled = true
 
 
 func _bake_static_textures() -> void:
@@ -328,8 +356,9 @@ func _update_stats(delta: float) -> void:
 	if _stats_frames < 60:
 		return
 	var rid: RID = get_viewport().get_viewport_rid()
-	print("STATS frame=%d fps=%d avg_ms=%.1f worst_ms=%.1f cpu_ms=%.1f gpu_ms=%.1f draw_calls=%d prims=%d objects=%d screen=%s" % [
+	print("STATS frame=%d fps=%d avg_ms=%.1f worst_ms=%.1f process_ms=%.2f cpu_ms=%.1f gpu_ms=%.1f draw_calls=%d prims=%d objects=%d screen=%s" % [
 		Engine.get_process_frames(), Engine.get_frames_per_second(), _stats_time / _stats_frames * 1000.0, _stats_worst * 1000.0,
+		Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
 		RenderingServer.viewport_get_measured_render_time_cpu(rid), RenderingServer.viewport_get_measured_render_time_gpu(rid),
 		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
 		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME),

@@ -14,6 +14,8 @@ var _tween: Tween = null
 ## True after a key or gamepad press, false after a mouse click or touch: decides whether the focus
 ## ring shows when a card opens (pointer users get the focus without the ring).
 static var keyboard_mode: bool = false
+## Temporary (`--perf-nofocus`): never grab the focus.
+static var focus_disabled: bool = false
 
 
 static func note_input(event: InputEvent) -> void:
@@ -27,7 +29,7 @@ static func note_input(event: InputEvent) -> void:
 
 ## Gives `c` the focus; the ring only shows for keyboard / gamepad users.
 static func focus(c: Control) -> void:
-	if c != null and c.is_visible_in_tree() and c.focus_mode != Control.FOCUS_NONE:
+	if not focus_disabled and c != null and c.is_visible_in_tree() and c.focus_mode != Control.FOCUS_NONE:
 		c.grab_focus(not keyboard_mode)
 
 

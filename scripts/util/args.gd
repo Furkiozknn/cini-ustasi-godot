@@ -1,11 +1,24 @@
 class_name Args
 extends RefCounted
 ## Reads the user arguments passed after "--" (e.g. `godot -- --auto --level 12`).
-## Supports `--key value` and `--key=value`.
+## Supports `--key value` and `--key=value`. In the browser build the page URL adds more:
+## `?arg=stats&arg=quality=high` reads like `-- --stats --quality=high`.
+
+static var _url_args: PackedStringArray = []
+static var _url_read: bool = false
 
 
 static func _list() -> PackedStringArray:
-	return OS.get_cmdline_user_args()
+	var list: PackedStringArray = OS.get_cmdline_user_args()
+	if OS.has_feature("web"):
+		if not _url_read:
+			_url_read = true
+			var raw: Variant = JavaScriptBridge.eval("new URLSearchParams(location.search).getAll('arg').join('\\n')", true)
+			if raw is String and raw != "":
+				for a in (raw as String).split("\n", false):
+					_url_args.append("--" + a)
+		list.append_array(_url_args)
+	return list
 
 
 static func has(flag: String) -> bool:
