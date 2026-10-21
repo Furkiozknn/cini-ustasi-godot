@@ -353,6 +353,8 @@ func _update_stats(delta: float) -> void:
 	_stats_frames += 1
 	_stats_time += real_delta
 	_stats_worst = maxf(_stats_worst, real_delta)
+	if real_delta > 0.1:
+		print("STATS long frame=%d ms=%.0f at=%d" % [Engine.get_process_frames(), real_delta * 1000.0, Time.get_ticks_msec()])
 	if _stats_frames < 60:
 		return
 	var rid: RID = get_viewport().get_viewport_rid()
