@@ -218,6 +218,12 @@ func _perf_experiments() -> void:
 	if Args.has("perf-nocredit"):
 		var title: Node = ui.screens[GameState.SCREEN_TITLE]
 		(title.get("_credit") as Control).visible = false
+	# `--perf-hide=Board,Fill,KilnLight`: hide nodes (any depth) by name
+	for n in Args.value("perf-hide", "").split(",", false):
+		var node: Node = find_child(n, true, false)
+		if node != null and "visible" in node:
+			node.set("visible", false)
+			print("STATS hid ", node.get_path())
 	if Args.has("perf-nofocus"):
 		get_viewport().gui_release_focus()
 		UiScreen.focus_disabled = true
