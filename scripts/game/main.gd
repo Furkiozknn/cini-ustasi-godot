@@ -117,13 +117,12 @@ func _ready() -> void:
 	_apply_quality()
 	_bake_static_textures()
 	gallery.rebuild()
-	_perf_experiments()
 	if Args.has("debug"):
 		_make_debug_overlay()
 	_stats = Args.has("stats")
 	if _stats:
 		RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
-		print("STATS quality=%s web=%s window=%s scale=%.2f args=%s" % [Settings.quality, Settings.is_web(), get_window().size, get_window().content_scale_factor, OS.get_cmdline_user_args() + Args._list()])
+		print("STATS quality=%s web=%s window=%s scale=%.2f args=%s" % [Settings.quality, Settings.is_web(), get_window().size, get_window().content_scale_factor, Args._list()])
 	_boot()
 
 
@@ -195,38 +194,6 @@ func _apply_quality() -> void:
 	baker.cell_px = 128 if low else 256
 	var dust: CPUParticles3D = world["dust"]
 	dust.amount = 60 if low else 170
-
-
-## Temporary `--perf-*` switches for browser A/B measurements.
-func _perf_experiments() -> void:
-	if Args.has("perf-nocat"):
-		cat.process_mode = Node.PROCESS_MODE_DISABLED
-		cat.visible = false
-	if Args.has("perf-noshadow"):
-		sun.shadow_enabled = false
-	if Args.has("perf-noui"):
-		ui.visible = false
-	if Args.has("perf-nodust"):
-		(world["dust"] as CPUParticles3D).visible = false
-	if Args.has("perf-nofx"):
-		for k in ["dust", "kiln_glow", "sparks"]:
-			(world[k] as Node3D).visible = false
-		(world["kiln_light"] as Light3D).visible = false
-	if Args.has("perf-no3d"):
-		get_node("World").visible = false
-		board.visible = false
-	if Args.has("perf-nocredit"):
-		var title: Node = ui.screens[GameState.SCREEN_TITLE]
-		(title.get("_credit") as Control).visible = false
-	# `--perf-hide=Board,Fill,KilnLight`: hide nodes (any depth) by name
-	for n in Args.value("perf-hide", "").split(",", false):
-		var node: Node = find_child(n, true, false)
-		if node != null and "visible" in node:
-			node.set("visible", false)
-			print("STATS hid ", node.get_path())
-	if Args.has("perf-nofocus"):
-		get_viewport().gui_release_focus()
-		UiScreen.focus_disabled = true
 
 
 func _bake_static_textures() -> void:
@@ -359,8 +326,9 @@ func _update_stats(delta: float) -> void:
 	_stats_frames += 1
 	_stats_time += real_delta
 	_stats_worst = maxf(_stats_worst, real_delta)
+	# the engine caps delta, so a long frame (e.g. a shader compile stall) shows as the gap between two "at" stamps (ms)
 	if real_delta > 0.1:
-		print("STATS long frame=%d ms=%.0f at=%d" % [Engine.get_process_frames(), real_delta * 1000.0, Time.get_ticks_msec()])
+		print("STATS long frame=%d at=%d" % [Engine.get_process_frames(), Time.get_ticks_msec()])
 	if _stats_frames < 60:
 		return
 	var rid: RID = get_viewport().get_viewport_rid()

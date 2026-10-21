@@ -144,6 +144,9 @@ window/size/viewport_height=780
 | `--keyboard` | Start as if the last input came from the keyboard (focus rings show; for screenshots) |
 | `--debug` | Draw calls, fps, state and bot status overlay |
 
+In the browser build the same arguments come from the page URL: `?arg=stats&arg=quality=high` acts like
+`-- --stats --quality=high` (the output goes to the browser console).
+
 `GameState.get_state_text()` returns the whole game state as JSON (screen, level, moves, par, stars,
 hints, slots, progress summary, bot status).
 
@@ -170,6 +173,15 @@ export_presets.cfg          "Web" preset (threads off, VRAM compression desktop 
 The `Web` preset exports to `build/web/index.html` with thread support off (so it works on GitHub
 Pages without cross-origin isolation headers) and VRAM texture compression for desktop and mobile.
 No editor step is needed: `godot --headless --path . --export-release Web build/web/index.html`.
+
+The web build uses per-vertex lighting (`rendering/shading/overrides/force_vertex_shading.web`). Chrome
+and Edge on Windows run WebGL through ANGLE on Direct3D 11, which compiles every shader variant with
+the slow D3D compiler the first time it is drawn: with per-pixel lighting the first 3D frame took about
+25 s on an Intel UHD 620 (the page is frozen on the title screen meanwhile), with per-vertex lighting
+about 6 s. The room is lit by directional lights and a soft ambient, so the picture is practically the
+same. Desktop builds keep per-pixel lighting. To reproduce the browser's shader cost natively, run
+`godot --path . --rendering-driver opengl3_angle -- --web-sim --stats` with an empty shader cache
+(watch the `STATS long frame` lines).
 
 ## How it was made
 
